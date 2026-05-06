@@ -1,0 +1,123 @@
+Game Design Document: Execution Frame Trainer
+
+Target Aesthetic: Street/Graffiti (Vibrant colors, high-contrast markers, stylized street-art UI elements, drawing inspiration from modern fighting games like Street Fighter 6). Enhanced with immersive game-feel elements including procedural synthesized audio and dynamic camera physics.
+
+1. Project Overview
+
+A specialized training environment designed to teach, test, and diagnose fighting game special move execution. It strictly adheres to modern 2D fighting game input parsers, providing granular, frame-by-frame visual feedback, persistent stat tracking, and realistic tactile feedback to help players achieve execution mastery.
+
+2. Core Gameplay Modes & Loop
+
+The game offers two distinct training modes to cater to different practice philosophies:
+
+Streak Mode: The player must execute the target move successfully a specified number of times in a row. A single dropped input resets the streak to zero.
+
+Precision Test: Evaluates performance over a set number of total attempts. It tracks overall failure rate, average execution speed, and average precision percentage.
+
+Gameplay Loop:
+
+Drill Setup: Player selects a move (Motion, Charge, Grappler, or Combos), chooses the Training Mode, sets the target amount, and selects their Player Side (P1/Right or P2/Left).
+
+Execution: The player attempts the move. A dynamic "Desired Input" UI visualizes progress in real-time (e.g., charge bars filling, 360 circles sweeping).
+
+Evaluation: The engine evaluates raw frame data against specific move tolerances, tracking strict inputs vs. fuzzy (sloppy) inputs.
+
+Feedback & Diagnostics: * Success: Triggers a procedural hit sound, a heavy camera shake, an animated "Combo Success" splash banner (detailing time and precision), and increments a massive arcade-style "X HIT" counter. The sequence UI elements perform a satisfying independent fade-out wave.
+
+Failure: Triggers a dissonant error buzzer, a glitchy horizontal camera shake, and a stylized diagnostic banner detailing the exact failure reason (e.g., "Input was too slow", "Pressed MP too early").
+
+Completion & Results: Upon reaching the target, a Results Screen displays the session's Success Rate, Average Execution Time, Average Precision, and a detailed log of every attempt. Best records are saved persistently.
+
+3. UI/UX Layout & Aesthetics
+
+The UI embraces a modern arcade aesthetic with neon accents (cyan, magenta, yellow) against dark, stylized backgrounds.
+
+Main Menu / Command List: A tabbed interface categorizing moves. Displays personal best records (Success Rate, Time, Precision) for each move pulled from local storage.
+
+Options Modal: Allows players to adjust master volume, toggle camera shake, tweak X/Y shake strengths, completely remap keyboard bindings, and remap Gamepad buttons with responsive Xbox-style icons.
+
+Training UI - Left Panel (Input History): A scrolling vertical log. Valid strict inputs are Cyan. Fuzzy/sloppy inputs are Yellow. Errors are marked with Red. Displays exact frame counts and pressed actions.
+
+Training UI - Center Stage: * Desired Input Bar: Displays required arrows/buttons. Charge moves feature a background fill clipping upward. 360 moves feature a sweeping conic-gradient.
+
+Splash Banners: Centered diagnostic text for failures or success metrics.
+
+Training UI - Right Screen: A massive, animated "X HIT" combo counter.
+
+Training UI - Bottom Panel (Virtual Controller): An arcade-style directional layout and 6-button layout (LP, MP, HP, LK, MK, HK) that lights up dynamically with physical inputs.
+
+4. Input Parser & Logic Systems
+
+The input reader utilizes a 60fps locked requestAnimationFrame loop, featuring distinct logical branches and specific game-accurate leniencies:
+
+Standard Motions (e.g., 236P / 41236P)
+
+Logic: Tracks sequential cardinal and diagonal transitions. Handles simultaneous inputs (pressing a direction and an action on the exact same frame).
+
+Fuzzy Tracking: Marks unwanted intermediate directions as "fuzzy" and penalizes the final precision score without necessarily failing the move.
+
+Charge Motions (e.g., [4]6P / [2]8K)
+
+Logic: Tracks continuous held frames. Incorporates a realistic 12-frame Charge Retention Leniency (allowing the player to briefly pass through neutral without losing the charge).
+
+Fuzzy Tracking: Recognizes adjacent diagonals (e.g., holding Down-Back to charge Back) as valid but marks them as fuzzy/sloppy execution.
+
+Grappler 360/720 Motions
+
+Logic: Utilizes a Strict Circular Pattern Matcher. It groups inputs into 4 cardinal zones and enforces a strict clockwise progression. It allows for minor wobbling (returning to a previous adjacent zone) but hard-resets the sequence if the circular pattern is broken.
+
+Fuzzy Tracking: Identifies and penalizes unnecessary neutral frames or excessive diagonal churning during the spin.
+
+Controller Support
+
+Gamepad API: Native polling for HTML5 Gamepads. Supports D-Pad and Analog Stick (with 0.4 deadzones) and maps to a standard modern 6-button fighter layout.
+
+Side Mirroring: When set to P2 (Left), the engine dynamically reverses all horizontal logic and UI rendering to allow practice from the opposite side of the screen.
+
+5. Audio & Game Feel (Juice)
+
+Procedural Synthesizer (Web Audio API): No external audio files are used. Sounds are mathematically generated for zero-latency playback.
+
+Light Attacks: Fast, high-pitched sine snaps.
+
+Medium Attacks: Thicker, mid-range triangle thuds.
+
+Heavy Attacks: Deep square-wave bass booms overlaid with decaying white-noise impact distortion.
+
+Errors: Harsh, dissonant sawtooth/square buzzers.
+
+Camera Shake Physics:
+
+Light Shake (Normal Inputs): Quick side-to-side jolts.
+
+Heavy Shake (Success): Forceful diagonal knockback paired with screen scaling and brightness bursts.
+
+Error Shake (Failure): Stuttering horizontal vibration simulating a game-freeze glitch.
+
+6. Development Roadmap
+
+Phase 1: Neutral State Engine (Completed)
+
+[x] Core 60fps logic array and input recording.
+
+[x] Standard, Charge, and Strict 360 Grappler parsers.
+
+[x] Gamepad integration and complete custom keybinding.
+
+[x] Persistent stat tracking and P1/P2 side toggling.
+
+[x] Procedural audio and screen shake feedback.
+
+Phase 2: Action States & Buffer Windows (Next Focus)
+
+Introduce simulated character states (standing, crouching, jumping, attacking).
+
+Implement Hitstop (screen freeze) logic and the 5-frame reversal/link buffer.
+
+Introduce "Too Early" and "Too Late" timing evaluations based on actionable state frames rather than just neutral gaps.
+
+Phase 3: Chained Moves & Advanced Combos
+
+Implement standard fighting game cancel windows (e.g., Normal -> Special Cancel).
+
+Implement SOCD (Simultaneous Opposing Cardinal Directions) cleaning rules for Leverless/Hitbox style controllers (e.g., L + R = Neutral, U + D = Up).
