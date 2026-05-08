@@ -123,8 +123,8 @@ const REACTION_SCENARIOS = {
     validEnd: 24,
     tellFrames: 28,
     endFrame: 24,
-    startX: 72,
-    endX: 52,
+    startX: 80,
+    endX: 60,
     startY: 0,
     endY: 0
   },
@@ -136,12 +136,174 @@ const REACTION_SCENARIOS = {
     tellFrames: 12,
     tellCountsAsValid: false,
     endFrame: 49,
-    startX: 72,
-    endX: 50,
+    startX: 80,
+    endX: 58,
     startY: 0,
     endY: 0,
     apex: -155
   }
+};
+
+const REACTION_PLAYER_SPRITES = {
+  idle: '/public/assets/sprites/reaction/player_idle.png',
+  hadoken: '/public/assets/sprites/reaction/player_hadoken_pose.png',
+  antiAir: '/public/assets/sprites/reaction/player_anti_air_pose.png'
+};
+
+const REACTION_OPPONENT_SPRITES = {
+  idle: '/public/assets/sprites/reaction/opponent_idle.png',
+  dashTell: '/public/assets/sprites/reaction/opponent_dash_tell.png',
+  dashActive: '/public/assets/sprites/reaction/opponent_dash_active.png',
+  jumpTell: '/public/assets/sprites/reaction/opponent_jump_tell.png',
+  jumpActive: '/public/assets/sprites/reaction/opponent_jump_active.png'
+};
+
+const SPRITE_METADATA_STORAGE_KEY = 'ftg_reaction_sprite_meta';
+
+const REACTION_SPRITE_DEFS = [
+  { id: 'player_idle', label: 'Player Idle', src: REACTION_PLAYER_SPRITES.idle },
+  { id: 'player_hadoken', label: 'Player Hadoken', src: REACTION_PLAYER_SPRITES.hadoken },
+  { id: 'player_anti_air', label: 'Player Anti-Air', src: REACTION_PLAYER_SPRITES.antiAir },
+  { id: 'opponent_idle', label: 'Opponent Idle', src: REACTION_OPPONENT_SPRITES.idle },
+  { id: 'opponent_dash_tell', label: 'Opponent Dash Tell', src: REACTION_OPPONENT_SPRITES.dashTell },
+  { id: 'opponent_dash_active', label: 'Opponent Dash Active', src: REACTION_OPPONENT_SPRITES.dashActive },
+  { id: 'opponent_jump_tell', label: 'Opponent Jump Tell', src: REACTION_OPPONENT_SPRITES.jumpTell },
+  { id: 'opponent_jump_active', label: 'Opponent Jump Active', src: REACTION_OPPONENT_SPRITES.jumpActive }
+];
+
+const REACTION_SPRITE_BY_ID = Object.fromEntries(REACTION_SPRITE_DEFS.map(sprite => [sprite.id, sprite]));
+
+const DEFAULT_REACTION_SPRITE_META = {
+  player_idle: { height: 320, x: 0, y: 0 },
+  player_hadoken: { height: 320, x: 6, y: 0 },
+  player_anti_air: { height: 330, x: 0, y: -2 },
+  opponent_idle: { height: 320, x: 0, y: 0 },
+  opponent_dash_tell: { height: 330, x: -8, y: 2 },
+  opponent_dash_active: { height: 350, x: -22, y: 6 },
+  opponent_jump_tell: { height: 325, x: 6, y: 0 },
+  opponent_jump_active: { height: 335, x: -8, y: -18 }
+};
+
+const SPRITE_DEBUG_SEQUENCES = [
+  { id: 'player_idle', label: 'Player Idle', frames: ['player_idle'] },
+  { id: 'player_hadoken_anim', label: 'Player Hadoken', frames: ['player_idle', 'player_hadoken'] },
+  { id: 'player_anti_air_anim', label: 'Player Anti-Air', frames: ['player_idle', 'player_anti_air'] },
+  { id: 'player_hadoken', label: 'Hadoken Only', frames: ['player_hadoken'] },
+  { id: 'player_anti_air', label: 'Anti-Air Only', frames: ['player_anti_air'] },
+  { id: 'opponent_idle', label: 'Opponent Idle', frames: ['opponent_idle'] },
+  { id: 'opponent_dash', label: 'Opponent Dash', frames: ['opponent_idle', 'opponent_dash_tell', 'opponent_dash_active'] },
+  { id: 'opponent_jump', label: 'Opponent Jump', frames: ['opponent_idle', 'opponent_jump_tell', 'opponent_jump_active'] },
+  { id: 'opponent_dash_tell', label: 'Dash Tell Only', frames: ['opponent_dash_tell'] },
+  { id: 'opponent_dash_active', label: 'Dash Active Only', frames: ['opponent_dash_active'] },
+  { id: 'opponent_jump_tell', label: 'Jump Tell Only', frames: ['opponent_jump_tell'] },
+  { id: 'opponent_jump_active', label: 'Jump Active Only', frames: ['opponent_jump_active'] }
+];
+
+const TRAINING_BACKGROUND_THEMES = {
+  grid: {
+    label: 'Grid Room',
+    swatch: 'from-stone-100 to-stone-500',
+    accentRgb: '8,145,178',
+    input: {
+      label: '#1f2937',
+      idleText: '#111827',
+      idleBorder: 'rgba(17,24,39,0.54)',
+      idleBg: 'rgba(255,255,255,0.58)',
+      currentText: '#020617',
+      currentBorder: 'rgba(8,145,178,0.9)',
+      currentBg: 'rgba(236,254,255,0.78)'
+    },
+    style: {
+      backgroundColor: '#d8d5c7',
+      backgroundImage: `
+        linear-gradient(to bottom, rgba(255,255,255,0.86), rgba(210,207,195,0.92) 54%, rgba(160,157,146,0.96) 55%, rgba(197,193,178,0.98)),
+        radial-gradient(circle at 50% 12%, rgba(255,255,255,0.82), transparent 42%)
+      `,
+      backgroundSize: '100% 100%, 100% 100%',
+      backgroundPosition: '0 0, 0 0'
+    },
+    floorStyle: {
+      backgroundImage: `
+        radial-gradient(ellipse at center bottom, rgba(35,35,31,0.18), transparent 62%)
+      `
+    }
+  },
+  night: {
+    label: 'Night Room',
+    swatch: 'from-slate-900 to-cyan-700',
+    accentRgb: '34,211,238',
+    input: {
+      label: '#cffafe',
+      idleText: '#e0f2fe',
+      idleBorder: 'rgba(103,232,249,0.52)',
+      idleBg: 'rgba(2,6,23,0.64)',
+      currentText: '#ffffff',
+      currentBorder: 'rgba(103,232,249,0.92)',
+      currentBg: 'rgba(8,47,73,0.72)'
+    },
+    style: {
+      backgroundColor: '#111827',
+      backgroundImage: `
+        linear-gradient(to bottom, rgba(15,23,42,0.96), rgba(30,41,59,0.94) 54%, rgba(6,78,59,0.36) 55%, rgba(3,7,18,0.98)),
+        radial-gradient(circle at 50% 12%, rgba(34,211,238,0.28), transparent 42%)
+      `,
+      backgroundSize: '100% 100%, 100% 100%',
+      backgroundPosition: '0 0, 0 0'
+    },
+    floorStyle: {
+      backgroundImage: `
+        radial-gradient(ellipse at center bottom, rgba(103,232,249,0.13), transparent 62%)
+      `
+    }
+  },
+  warm: {
+    label: 'Warm Dojo',
+    swatch: 'from-amber-100 to-rose-500',
+    accentRgb: '225,29,72',
+    input: {
+      label: '#3f1f12',
+      idleText: '#1c1917',
+      idleBorder: 'rgba(68,46,33,0.56)',
+      idleBg: 'rgba(255,247,237,0.56)',
+      currentText: '#ffffff',
+      currentBorder: 'rgba(225,29,72,0.92)',
+      currentBg: 'rgba(159,18,57,0.74)'
+    },
+    style: {
+      backgroundColor: '#d7c0a2',
+      backgroundImage: `
+        linear-gradient(to bottom, rgba(255,247,237,0.86), rgba(214,174,125,0.76) 54%, rgba(113,63,18,0.44) 55%, rgba(132,94,68,0.96)),
+        radial-gradient(circle at 50% 10%, rgba(255,255,255,0.72), transparent 42%)
+      `,
+      backgroundSize: '100% 100%, 100% 100%',
+      backgroundPosition: '0 0, 0 0'
+    },
+    floorStyle: {
+      backgroundImage: `
+        radial-gradient(ellipse at center bottom, rgba(68,46,33,0.16), transparent 62%)
+      `
+    }
+  }
+};
+
+const PLAYER_ATTACK_POSE_FRAMES = 36;
+
+const mergeSpriteMeta = (saved = {}) => Object.fromEntries(
+  Object.entries(DEFAULT_REACTION_SPRITE_META).map(([id, meta]) => [id, { ...meta, ...(saved[id] || {}) }])
+);
+
+const getReactionPlayerAttackSpriteId = (moveId) => {
+  if (['236P', '236236P'].includes(moveId)) return 'player_hadoken';
+  if (['623P', 'charge28K'].includes(moveId)) return 'player_anti_air';
+  return 'player_idle';
+};
+
+const getReactionOpponentSpriteId = (reaction) => {
+  if (!reaction || reaction.phase === 'delay') return 'opponent_idle';
+  if (reaction.scenario === 'jump') {
+    return reaction.phase === 'tell' ? 'opponent_jump_tell' : 'opponent_jump_active';
+  }
+  return reaction.phase === 'tell' ? 'opponent_dash_tell' : 'opponent_dash_active';
 };
 
 const makeReactionRound = (scenarioId) => {
@@ -508,6 +670,11 @@ function App() {
   const [enableShake, setEnableShake] = useState(true);
   const [shakeStrengthX, setShakeStrengthX] = useState(15);
   const [shakeStrengthY, setShakeStrengthY] = useState(15);
+  const [backgroundTheme, setBackgroundTheme] = useState('grid');
+  const [spriteMeta, setSpriteMeta] = useState(() => mergeSpriteMeta());
+  const [spriteDebugSelected, setSpriteDebugSelected] = useState('opponent_idle');
+  const [spriteDebugFrame, setSpriteDebugFrame] = useState('opponent_idle');
+  const [spriteDebugSequence, setSpriteDebugSequence] = useState('opponent_idle');
   
   const [, setRenderTick] = useState(0);
 
@@ -527,6 +694,8 @@ function App() {
     was360Ready: false,
     reaction: null,
     lastReactionFrames: null,
+    playerAttackSpriteId: null,
+    playerAttackSpriteUntilFrame: -1,
     inputLockUntilNeutral: false,
     lastFailureFrame: -1,
     shakeFrames: 0,
@@ -578,6 +747,16 @@ function App() {
      if (savedShakeX) setShakeStrengthX(parseInt(savedShakeX));
      const savedShakeY = localStorage.getItem('ftg_shake_y');
      if (savedShakeY) setShakeStrengthY(parseInt(savedShakeY));
+     const savedBackgroundTheme = localStorage.getItem('ftg_background_theme');
+     if (savedBackgroundTheme && TRAINING_BACKGROUND_THEMES[savedBackgroundTheme]) setBackgroundTheme(savedBackgroundTheme);
+     const savedSpriteMeta = localStorage.getItem(SPRITE_METADATA_STORAGE_KEY);
+     if (savedSpriteMeta) {
+       try {
+         setSpriteMeta(mergeSpriteMeta(JSON.parse(savedSpriteMeta)));
+       } catch (error) {
+         setSpriteMeta(mergeSpriteMeta());
+       }
+     }
   }, []);
 
   // Save Settings
@@ -588,6 +767,22 @@ function App() {
   useEffect(() => { localStorage.setItem('ftg_shake', enableShake.toString()); }, [enableShake]);
   useEffect(() => { localStorage.setItem('ftg_shake_x', shakeStrengthX.toString()); }, [shakeStrengthX]);
   useEffect(() => { localStorage.setItem('ftg_shake_y', shakeStrengthY.toString()); }, [shakeStrengthY]);
+  useEffect(() => { localStorage.setItem('ftg_background_theme', backgroundTheme); }, [backgroundTheme]);
+
+  useEffect(() => {
+    if (screen !== 'spriteDebug') return;
+    const sequence = SPRITE_DEBUG_SEQUENCES.find(item => item.id === spriteDebugSequence) || SPRITE_DEBUG_SEQUENCES[0];
+    let index = 0;
+    setSpriteDebugFrame(sequence.frames[0]);
+    setSpriteDebugSelected(sequence.frames[0]);
+    if (sequence.frames.length <= 1) return;
+    const interval = setInterval(() => {
+      index = (index + 1) % sequence.frames.length;
+      setSpriteDebugFrame(sequence.frames[index]);
+      setSpriteDebugSelected(sequence.frames[index]);
+    }, 420);
+    return () => clearInterval(interval);
+  }, [screen, spriteDebugSequence]);
 
   // Remapping Listeners
   useEffect(() => {
@@ -711,6 +906,8 @@ function App() {
     s.successesThisSession++;
     s.attemptsThisSession++;
     s.currentStreak++;
+    s.playerAttackSpriteId = getReactionPlayerAttackSpriteId(targetMove);
+    s.playerAttackSpriteUntilFrame = s.totalFrames + PLAYER_ATTACK_POSE_FRAMES;
     setHitCounter(s.currentStreak);
 
     const lenFrames = s.sequenceFrames;
@@ -1048,7 +1245,7 @@ function App() {
           stateRef.current.totalFrames = 0; stateRef.current.stepGlows = {};
           stateRef.current.chargeGlowFrame = -999; stateRef.current.spinGlowFrame = -999;
           stateRef.current.wasChargeReady = false; stateRef.current.was360Ready = false;
-          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
+          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
           stateRef.current.keys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.effectiveKeys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.successesThisSession = 0; stateRef.current.failuresThisSession = 0; stateRef.current.attemptsThisSession = 0;
@@ -1253,6 +1450,8 @@ function App() {
        wasChargeReady: false, was360Ready: false,
        reaction: trainingMode === 'reaction' ? makeReactionRound(resolveReactionScenario(nextMoveDef, nextMoveId)) : null,
        lastReactionFrames: null,
+       playerAttackSpriteId: null,
+       playerAttackSpriteUntilFrame: -1,
        inputLockUntilNeutral: false,
        lastFailureFrame: -1,
        shakeFrames: 0, shakeType: null,
@@ -1413,6 +1612,53 @@ function App() {
      </div>
   );
 
+  const updateSpriteMeta = (spriteId, patch) => {
+    setSpriteMeta(prev => mergeSpriteMeta({
+      ...prev,
+      [spriteId]: { ...(prev[spriteId] || DEFAULT_REACTION_SPRITE_META[spriteId]), ...patch }
+    }));
+  };
+
+  const saveSpriteMeta = () => {
+    const merged = mergeSpriteMeta(spriteMeta);
+    setSpriteMeta(merged);
+    localStorage.setItem(SPRITE_METADATA_STORAGE_KEY, JSON.stringify(merged));
+  };
+
+  const resetSpriteMeta = () => {
+    const defaults = mergeSpriteMeta();
+    setSpriteMeta(defaults);
+    localStorage.removeItem(SPRITE_METADATA_STORAGE_KEY);
+  };
+
+  const renderSpritePreview = (spriteId, facing = 1) => {
+    const sprite = REACTION_SPRITE_BY_ID[spriteId] || REACTION_SPRITE_BY_ID.player_idle;
+    const meta = spriteMeta[spriteId] || DEFAULT_REACTION_SPRITE_META[spriteId] || DEFAULT_REACTION_SPRITE_META.player_idle;
+    return (
+      <div className="absolute bottom-0 left-1/2 h-96 w-[42rem] -translate-x-1/2" style={{ transform: `translateX(-50%) scaleX(${facing})` }}>
+        <img
+          src={sprite.src}
+          alt=""
+          className="absolute w-auto max-w-none -translate-x-1/2"
+          style={{
+            imageRendering: 'pixelated',
+            height: `${meta.height}px`,
+            left: `calc(50% + ${meta.x}px)`,
+            bottom: `${meta.y}px`,
+            filter: `
+              drop-shadow(3px 0 0 rgba(255,255,255,0.92))
+              drop-shadow(-3px 0 0 rgba(255,255,255,0.92))
+              drop-shadow(0 3px 0 rgba(255,255,255,0.92))
+              drop-shadow(0 -3px 0 rgba(255,255,255,0.92))
+              drop-shadow(0 0 18px rgba(34,211,238,0.7))
+            `
+          }}
+          draggable={false}
+        />
+      </div>
+    );
+  };
+
   const renderOptionsModal = () => {
      if (!showOptions) return null;
      return (
@@ -1455,6 +1701,31 @@ function App() {
                     </div>
                  )}
               </div>
+
+              <div className="mb-6">
+                 <div className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-3">Training Background</div>
+                 <div className="grid grid-cols-3 gap-3">
+                    {Object.entries(TRAINING_BACKGROUND_THEMES).map(([id, theme]) => (
+                       <button
+                          key={id}
+                          onClick={() => setBackgroundTheme(id)}
+                          className={`p-2 rounded border transition-colors text-left ${backgroundTheme === id ? 'border-yellow-500 bg-yellow-500/10' : 'border-zinc-800 bg-zinc-950 hover:border-zinc-600'}`}
+                       >
+                          <div className={`h-10 rounded bg-gradient-to-br ${theme.swatch} border border-black/30 mb-2`}></div>
+                          <div className={`text-[10px] font-black uppercase tracking-widest ${backgroundTheme === id ? 'text-yellow-400' : 'text-zinc-400'}`}>
+                             {theme.label}
+                          </div>
+                       </button>
+                    ))}
+                 </div>
+              </div>
+
+              <button
+                onClick={() => { setShowOptions(false); setScreen('spriteDebug'); }}
+                className="mb-6 w-full py-3 rounded border border-cyan-500/60 bg-cyan-500/10 text-cyan-300 text-xs font-black italic tracking-widest uppercase hover:bg-cyan-500/20 transition-colors"
+              >
+                Sprite Debug Lab
+              </button>
 
               <div className="border-t border-zinc-800 pt-6 mb-6 min-h-[220px]">
                  <div className="flex gap-6 mb-4">
@@ -1511,6 +1782,107 @@ function App() {
            </div>
         </div>
      );
+  };
+
+  const renderSpriteDebug = () => {
+    const selectedSprite = REACTION_SPRITE_BY_ID[spriteDebugSelected] || REACTION_SPRITE_BY_ID.opponent_idle;
+    const selectedMeta = spriteMeta[selectedSprite.id] || DEFAULT_REACTION_SPRITE_META[selectedSprite.id];
+    const activeSequence = SPRITE_DEBUG_SEQUENCES.find(item => item.id === spriteDebugSequence) || SPRITE_DEBUG_SEQUENCES[0];
+    const previewFacing = selectedSprite.id.startsWith('opponent') ? 1 : 1;
+    const updateNumber = (key, value) => updateSpriteMeta(selectedSprite.id, { [key]: parseInt(value, 10) || 0 });
+
+    return (
+      <div className="h-screen bg-zinc-950 text-white flex flex-col overflow-hidden select-none">
+        <div className="h-20 px-8 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between">
+          <div>
+            <button onClick={() => setScreen('menu')} className="text-zinc-500 hover:text-cyan-400 font-mono text-xs tracking-widest uppercase mb-1">BACK TO MENU</button>
+            <h1 className="text-3xl font-black italic text-cyan-400 uppercase tracking-widest">SPRITE DEBUG LAB</h1>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={resetSpriteMeta} className="px-5 py-3 rounded border border-red-900/60 text-red-400 text-xs font-black uppercase hover:bg-red-950/40">Reset Defaults</button>
+            <button onClick={saveSpriteMeta} className="px-6 py-3 rounded bg-yellow-500 text-black text-xs font-black uppercase hover:bg-yellow-400">Save Metadata</button>
+          </div>
+        </div>
+
+        <div className="flex-1 grid grid-cols-[18rem_1fr_20rem] min-h-0">
+          <div className="bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto no-scrollbar">
+            <div className="text-[10px] text-zinc-600 font-black tracking-widest uppercase mb-3">Playback</div>
+            <div className="space-y-2 mb-6">
+              {SPRITE_DEBUG_SEQUENCES.map(sequence => (
+                <button
+                  key={sequence.id}
+                  onClick={() => setSpriteDebugSequence(sequence.id)}
+                  className={`w-full text-left px-3 py-3 rounded border text-xs font-black uppercase tracking-widest transition-colors ${spriteDebugSequence === sequence.id ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600'}`}
+                >
+                  {sequence.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-[10px] text-zinc-600 font-black tracking-widest uppercase mb-3">Sprites</div>
+            <div className="space-y-2">
+              {REACTION_SPRITE_DEFS.map(sprite => (
+                <button
+                  key={sprite.id}
+                  onClick={() => { setSpriteDebugSelected(sprite.id); setSpriteDebugFrame(sprite.id); setSpriteDebugSequence(sprite.id); }}
+                  className={`w-full text-left px-3 py-2 rounded border text-xs font-black uppercase tracking-widest transition-colors ${spriteDebugSelected === sprite.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-300' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600'}`}
+                >
+                  {sprite.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden" style={TRAINING_BACKGROUND_THEMES[backgroundTheme].style}>
+            <div className="absolute left-0 right-0 bottom-0 h-[42%]" style={TRAINING_BACKGROUND_THEMES[backgroundTheme].floorStyle}></div>
+            <div className="absolute left-0 right-0 bottom-24 h-[7px] bg-cyan-300/60 shadow-[0_2px_12px_rgba(0,0,0,0.35)]"></div>
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 flex gap-2">
+              {activeSequence.frames.map(frame => (
+                <button
+                  key={frame}
+                  onClick={() => { setSpriteDebugSelected(frame); setSpriteDebugFrame(frame); }}
+                  className={`px-3 py-2 rounded border text-[10px] font-black uppercase tracking-widest ${spriteDebugFrame === frame ? 'border-yellow-500 bg-yellow-500/20 text-yellow-300' : 'border-zinc-700 bg-zinc-950/80 text-zinc-400'}`}
+                >
+                  {REACTION_SPRITE_BY_ID[frame]?.label || frame}
+                </button>
+              ))}
+            </div>
+            <div className="absolute bottom-24 left-1/2 h-96 w-[42rem] -translate-x-1/2">
+              {renderSpritePreview(spriteDebugFrame, previewFacing)}
+            </div>
+          </div>
+
+          <div className="bg-zinc-950 border-l border-zinc-800 p-5 overflow-y-auto no-scrollbar">
+            <div className="text-[10px] text-zinc-600 font-black tracking-widest uppercase mb-2">Editing</div>
+            <div className="text-xl font-black italic text-white uppercase mb-6">{selectedSprite.label}</div>
+
+            {[
+              ['height', 'Height', 180, 440],
+              ['x', 'X Offset', -180, 180],
+              ['y', 'Y Offset', -140, 140]
+            ].map(([key, label, min, max]) => (
+              <label key={key} className="block mb-5">
+                <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">
+                  <span>{label}</span>
+                  <span>{selectedMeta[key]}</span>
+                </div>
+                <input type="range" min={min} max={max} value={selectedMeta[key]} onChange={(e) => updateNumber(key, e.target.value)} className="w-full accent-cyan-400" />
+                <input type="number" min={min} max={max} value={selectedMeta[key]} onChange={(e) => updateNumber(key, e.target.value)} className="mt-2 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white" />
+              </label>
+            ))}
+
+            <div className="grid grid-cols-2 gap-2 mt-6">
+              <button onClick={() => updateSpriteMeta(selectedSprite.id, DEFAULT_REACTION_SPRITE_META[selectedSprite.id])} className="py-2 rounded border border-zinc-700 text-zinc-300 text-xs font-black uppercase hover:bg-zinc-900">Reset Sprite</button>
+              <button onClick={saveSpriteMeta} className="py-2 rounded bg-cyan-500 text-black text-xs font-black uppercase hover:bg-cyan-400">Save</button>
+            </div>
+
+            <div className="mt-6 p-3 rounded border border-zinc-800 bg-zinc-900 text-[10px] font-mono text-zinc-500 leading-relaxed">
+              Runtime metadata saves to localStorage. Game screen uses saved values immediately after Save.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderStepEditor = (step) => {
@@ -1693,56 +2065,57 @@ function App() {
   // ======================
   // 1. MENU SCREEN
   // ======================
+  if (screen === 'spriteDebug') return renderSpriteDebug();
   if (screen === 'customEditor') return renderCustomEditor();
 
   if (screen === 'menu') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none relative">
+      <div className="h-screen bg-zinc-950 text-white flex flex-col items-center justify-center px-6 py-5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none relative overflow-hidden">
         
-        <button onClick={() => setShowOptions(true)} className="absolute top-8 right-8 text-zinc-500 hover:text-cyan-400 transition-colors flex items-center gap-2">
+        <button onClick={() => setShowOptions(true)} className="absolute top-6 right-7 text-zinc-500 hover:text-cyan-400 transition-colors flex items-center gap-2">
            <span className="text-xl">⚙️</span><span className="font-bold tracking-widest text-sm">OPTIONS</span>
         </button>
 
-        <h1 className="text-6xl font-black italic tracking-tighter mb-2 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-pink-500 drop-shadow-lg">
+        <h1 className="text-5xl xl:text-6xl leading-none font-black italic tracking-tighter mb-1 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-pink-500 drop-shadow-lg uppercase">
           EXECUTION TRAINER
         </h1>
-        <p className="text-zinc-400 font-mono tracking-widest mb-10">SELECT YOUR DRILL</p>
+        <p className="text-zinc-400 font-mono tracking-widest mb-4 text-sm">SELECT YOUR DRILL</p>
 
-        <div className="flex w-full h-[65vh] max-w-6xl mx-auto border-2 border-zinc-800 rounded-lg overflow-hidden shadow-2xl bg-zinc-900">
+        <div className="flex w-full flex-1 min-h-0 max-h-[calc(100vh-8rem)] max-w-7xl mx-auto border-2 border-zinc-800 rounded-lg overflow-hidden shadow-2xl bg-zinc-900">
           
-          <div className="w-64 bg-zinc-950 flex flex-col border-r border-zinc-800">
-            <div className="p-4 bg-zinc-900 border-b border-zinc-800 text-xs font-black text-zinc-500 tracking-widest uppercase">Categories</div>
+          <div className="w-60 bg-zinc-950 flex flex-col border-r border-zinc-800">
+            <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 text-xs font-black text-zinc-500 tracking-widest uppercase">Categories</div>
             {TABS.map(tab => (
                <button key={tab} onClick={() => {
                   setActiveTab(tab);
                   const firstMove = Object.keys(allMoves).find(k => allMoves[k].tab === tab);
                   if (firstMove) setTargetMove(firstMove);
                }}
-                 className={`w-full text-left px-6 py-5 font-black italic text-lg tracking-wider transition-colors border-l-4 ${activeTab === tab ? 'border-yellow-500 bg-zinc-800 text-yellow-500 shadow-[inset_0_0_20px_rgba(234,179,8,0.1)]' : 'border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
+                 className={`w-full text-left px-6 py-4 font-black italic text-lg tracking-wider transition-colors border-l-4 ${activeTab === tab ? 'border-yellow-500 bg-zinc-800 text-yellow-500 shadow-[inset_0_0_20px_rgba(234,179,8,0.1)]' : 'border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
                  {tab}
                </button>
             ))}
           </div>
 
           <div className="flex-1 flex flex-col bg-zinc-900">
-            <div className="p-4 bg-zinc-950 border-b border-zinc-800 flex justify-between items-center">
+            <div className="px-4 py-3 bg-zinc-950 border-b border-zinc-800 flex justify-between items-center">
                <span className="text-xs font-black text-zinc-500 tracking-widest uppercase">Command List</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-3 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
                {Object.entries(allMoves).filter(([id, m]) => m.tab === activeTab).map(([id, move]) => {
                   const rec = records[id];
                   return (
                   <button key={id} onClick={() => setTargetMove(id)}
-                    className={`w-full flex items-center justify-between p-4 bg-zinc-950/50 border-2 rounded transition-all ${targetMove === id ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/50'}`}>
+                    className={`w-full flex items-center justify-between gap-4 px-4 py-3 bg-zinc-950/50 border-2 rounded transition-all ${targetMove === id ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/50'}`}>
                      <div className="text-left flex flex-col">
-                        <span className={`font-black italic text-xl ${targetMove === id ? 'text-yellow-500' : 'text-zinc-200'}`}>{move.name}</span>
-                        <div className="text-[10px] font-mono text-zinc-400 mt-1 flex gap-3">
+                        <span className={`font-black italic text-xl tracking-tighter uppercase ${targetMove === id ? 'text-yellow-500' : 'text-zinc-200'}`}>{move.name}</span>
+                        <div className="text-[10px] font-mono text-zinc-400 mt-1 flex flex-wrap gap-x-3 gap-y-1 tracking-wider">
                            <span>BEST SR: <span className="text-pink-400">{rec?.bestSuccessRate || 0}%</span></span>
                            <span>BEST TIME: <span className="text-white">{rec?.bestFrames < 9999 ? rec.bestFrames : '--'}f</span></span>
                            <span>BEST PREC: <span className="text-cyan-400">{rec?.bestPrecision || 0}%</span></span>
                         </div>
                      </div>
-                     <div className="flex items-center gap-2 bg-zinc-900 py-2 px-3 rounded border border-zinc-800 shadow-inner">
+                     <div className="shrink-0 flex items-center gap-2 bg-zinc-900 py-2 px-3 rounded border border-zinc-800 shadow-inner">
                         {move.charge && (
                            <div className="flex items-center gap-1">
                               <DirIcon dir={move.charge.icon} flip={playerSide === 'P2'} className="w-5 h-5 text-yellow-500 drop-shadow-md" />
@@ -1767,8 +2140,8 @@ function App() {
           </div>
 
           <div className="w-80 bg-zinc-950 border-l border-zinc-800 flex flex-col">
-            <div className="p-4 bg-yellow-500 text-black font-black italic tracking-widest text-center text-lg uppercase">Drill Config</div>
-            <div className="p-6 flex-1 flex flex-col gap-6 overflow-y-auto no-scrollbar">
+            <div className="px-4 py-3 bg-yellow-500 text-black font-black italic tracking-widest text-center text-lg uppercase">Drill Config</div>
+            <div className="p-4 flex-1 flex flex-col gap-5 overflow-y-auto no-scrollbar">
                
                <div>
                   <label className="text-xs font-black text-zinc-500 tracking-widest mb-3 block uppercase">Player Side</label>
@@ -1826,7 +2199,7 @@ function App() {
             </div>
             
             <button onClick={() => (activeTab === 'CUSTOM' && !curTargetMove.custom ? openNewCustomEditor() : startTraining(targetMove))}
-              className="py-6 bg-yellow-500 hover:bg-yellow-400 text-black font-black italic text-3xl tracking-tighter transition-colors uppercase">
+              className="py-5 bg-yellow-500 hover:bg-yellow-400 text-black font-black italic text-3xl tracking-tighter transition-colors uppercase">
                {activeTab === 'CUSTOM' && !curTargetMove.custom ? 'CREATE' : 'START'}
             </button>
           </div>
@@ -1911,13 +2284,24 @@ function App() {
   const reaction = stateRef.current.reaction;
   const reactionDef = reaction ? REACTION_SCENARIOS[reaction.scenario] : null;
   const reactionIsActive = trainingMode === 'reaction';
-  const playerStageX = playerSide === 'P1' ? 28 : 72;
-  const opponentStageX = reaction ? (playerSide === 'P1' ? reaction.x : 100 - reaction.x) : (playerSide === 'P1' ? 72 : 28);
+  const playerStageX = playerSide === 'P1' ? 22 : 78;
+  const opponentStageX = reaction ? (playerSide === 'P1' ? reaction.x : 100 - reaction.x) : (playerSide === 'P1' ? 80 : 20);
   const opponentStageY = reaction ? reaction.y : 0;
-  const opponentFacing = playerSide === 'P1' ? -1 : 1;
+  const opponentFacing = playerSide === 'P1' ? 1 : -1;
   const playerFacing = playerSide === 'P1' ? 1 : -1;
+  const playerAttackSpriteActive = stateRef.current.totalFrames < stateRef.current.playerAttackSpriteUntilFrame;
+  const playerReactionSpriteId = playerAttackSpriteActive
+    ? (stateRef.current.playerAttackSpriteId || 'player_idle')
+    : 'player_idle';
+  const playerReactionSprite = REACTION_SPRITE_BY_ID[playerReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.player_idle.src;
+  const playerReactionMeta = spriteMeta[playerReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[playerReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.player_idle;
+  const opponentReactionSpriteId = getReactionOpponentSpriteId(reaction);
+  const opponentReactionSprite = REACTION_SPRITE_BY_ID[opponentReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.opponent_idle.src;
+  const opponentReactionMeta = spriteMeta[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.opponent_idle;
   const isSuccessLinger = !!successBanner;
   const latestDiagnostic = diagnostics.length > 0 ? diagnostics[diagnostics.length - 1] : null;
+  const trainingBackground = TRAINING_BACKGROUND_THEMES[backgroundTheme] || TRAINING_BACKGROUND_THEMES.grid;
+  const inputTheme = trainingBackground.input;
   
   const curMoveDef = curTargetMove;
   const chargeFramesCount = curMoveDef.charge ? getChargeFrames(h, curMoveDef.charge.dirs) : 0;
@@ -1940,8 +2324,10 @@ function App() {
 
     return {
       transform: `scale(${1 + (easeOut * 0.10)})`,
-      borderColor: `rgba(250,204,21,${easeOut * 0.8})`,
-      boxShadow: `0 0 ${20 * easeOut}px rgba(250,204,21,${easeOut * 0.4})`
+      borderColor: `rgba(${trainingBackground.accentRgb},${easeOut * 0.9})`,
+      color: inputTheme.currentText,
+      backgroundColor: `rgba(${trainingBackground.accentRgb},${easeOut * 0.22})`,
+      boxShadow: `0 0 ${20 * easeOut}px rgba(${trainingBackground.accentRgb},${easeOut * 0.46})`
     };
   };
 
@@ -2142,31 +2528,41 @@ function App() {
       </div>
 
       {/* CENTER STAGE */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 pl-80 pr-0">
+      <div
+        className="flex-1 flex flex-col items-center justify-center pl-80 pr-0 relative overflow-hidden"
+        style={trainingBackground.style}
+      >
+        <div className="absolute left-80 right-0 bottom-0 h-[45%] pointer-events-none" style={trainingBackground.floorStyle}></div>
 
-        <div className={`${reactionIsActive ? 'mb-5 mt-16' : 'mb-12 mt-24'} flex flex-col items-center`}>
-           <div className="text-zinc-500 font-mono text-xs tracking-widest mb-4 uppercase">DESIRED INPUT</div>
+        <div className={`${reactionIsActive ? 'absolute top-24 left-[calc(50%+10rem)] -translate-x-1/2' : 'mb-12 mt-24'} z-30 flex flex-col items-center`}>
+           <div className="font-mono text-xs font-black tracking-widest mb-4 uppercase drop-shadow-[0_1px_1px_rgba(255,255,255,0.45)]" style={{ color: inputTheme.label }}>DESIRED INPUT</div>
            <div className="flex gap-4 items-center">
              
              {curMoveDef.charge && (
                 <div className={`relative h-14 w-14 flex items-center justify-center border-2 rounded transform transition-all duration-100 overflow-hidden
-                    ${chargeGlowActive ? 'border-yellow-400' : 'border-zinc-800 bg-zinc-900/50'}
                     ${chargeGlowActive ? 'transition-none' : ''}`}
-                    style={chargeGlowActive ? getSpecialInputGlowStyle(chargeGlowFramesPassed) : {}}>
+                    style={chargeGlowActive ? getSpecialInputGlowStyle(chargeGlowFramesPassed) : {
+                      color: inputTheme.idleText,
+                      borderColor: inputTheme.idleBorder,
+                      backgroundColor: inputTheme.idleBg
+                    }}>
                     
-                    <div className="absolute bottom-0 left-0 w-full bg-yellow-400/30" style={{ height: `${chargeFillPercent}%` }}></div>
-                    <DirIcon dir={curMoveDef.charge.icon} flip={playerSide === 'P2'} className={`relative z-10 w-8 h-8 ${chargeGlowActive ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-zinc-300'}`} />
+                    <div className="absolute bottom-0 left-0 w-full" style={{ height: `${chargeFillPercent}%`, backgroundColor: `rgba(${trainingBackground.accentRgb},0.22)` }}></div>
+                    <DirIcon dir={curMoveDef.charge.icon} flip={playerSide === 'P2'} className="relative z-10 w-8 h-8" />
                 </div>
              )}
              
              {curMoveDef.require360 && (
                 <div className={`relative h-14 w-14 flex items-center justify-center border-2 rounded transform transition-all duration-100 overflow-hidden
-                    ${spinGlowActive ? 'border-yellow-400' : 'border-zinc-800 bg-zinc-900/50'}
                     ${spinGlowActive ? 'transition-none' : ''}`}
-                    style={spinGlowActive ? getSpecialInputGlowStyle(spinGlowFramesPassed) : {}}>
+                    style={spinGlowActive ? getSpecialInputGlowStyle(spinGlowFramesPassed) : {
+                      color: inputTheme.idleText,
+                      borderColor: inputTheme.idleBorder,
+                      backgroundColor: inputTheme.idleBg
+                    }}>
                     
-                    <div className="absolute inset-0 opacity-40" style={{ background: `conic-gradient(#facc15 ${spinFillPercent}%, transparent 0)` }}></div>
-                    <DirIcon dir={curMoveDef.require360.label} flip={playerSide === 'P2'} className={`relative z-10 w-8 h-8 ${spinGlowActive ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-zinc-300'}`} />
+                    <div className="absolute inset-0 opacity-40" style={{ background: `conic-gradient(rgb(${trainingBackground.accentRgb}) ${spinFillPercent}%, transparent 0)` }}></div>
+                    <DirIcon dir={curMoveDef.require360.label} flip={playerSide === 'P2'} className="relative z-10 w-8 h-8" />
                 </div>
              )}
 
@@ -2195,17 +2591,28 @@ function App() {
                    
                    inlineStyle = {
                        transform: `scale(${scale})`,
-                       borderColor: `rgba(34,211,238,${alpha})`,
-                       color: `rgba(34,211,238,${Math.max(0.3, alpha + 0.5)})`,
-                       backgroundColor: `rgba(34,211,238,${alpha * 0.2})`,
-                       boxShadow: `0 0 ${shadowSpread}px rgba(34,211,238,${alpha})`,
+                       borderColor: `rgba(${trainingBackground.accentRgb},${alpha})`,
+                       color: inputTheme.currentText,
+                       backgroundColor: `rgba(${trainingBackground.accentRgb},${alpha * 0.24})`,
+                       boxShadow: `0 0 ${shadowSpread}px rgba(${trainingBackground.accentRgb},${alpha})`,
                        zIndex: isLast ? 10 : 1
                    };
                    containerClass += "transition-none";
                 } else if (isCurrent) {
-                   containerClass += "border-zinc-500 text-zinc-300 scale-105 transition-all duration-100";
+                   inlineStyle = {
+                     borderColor: inputTheme.currentBorder,
+                     color: inputTheme.currentText,
+                     backgroundColor: inputTheme.currentBg,
+                     boxShadow: `0 0 14px rgba(${trainingBackground.accentRgb},0.28)`
+                   };
+                   containerClass += "scale-105 transition-all duration-100";
                 } else {
-                   containerClass += "border-zinc-800 text-zinc-700 transition-all duration-100";
+                   inlineStyle = {
+                     borderColor: inputTheme.idleBorder,
+                     color: inputTheme.idleText,
+                     backgroundColor: inputTheme.idleBg
+                   };
+                   containerClass += "transition-all duration-100";
                 }
 
                 return (
@@ -2218,7 +2625,11 @@ function App() {
         </div>
 
         {reactionIsActive && (
-          <div className="relative w-[44rem] h-64 mb-6 border-b-4 border-zinc-700/80 overflow-hidden">
+          <div className="relative z-10 w-[72rem] max-w-[calc(100vw-24rem)] h-[25rem] mb-6 overflow-visible">
+            <div
+              className="absolute left-1/2 bottom-0 h-[7px] w-[calc(100vw-20rem)] -translate-x-1/2 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.28)]"
+              style={{ backgroundColor: inputTheme.idleBorder }}
+            ></div>
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 pointer-events-none">
               <span className="px-3 py-1 rounded bg-zinc-950/80 border border-zinc-700 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
                 {reactionDef?.label || 'Reaction'}
@@ -2233,27 +2644,56 @@ function App() {
               )}
             </div>
 
-            <div className="absolute left-0 right-0 bottom-0 h-20 bg-gradient-to-t from-zinc-900/90 to-transparent"></div>
-            <div className="absolute bottom-0 h-32 w-20"
+            <div className="absolute bottom-0 h-80 w-[34rem]"
               style={{ left: `${playerStageX}%`, transform: `translateX(-50%) scaleX(${playerFacing})` }}>
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-24 rounded-t-full bg-gradient-to-b from-cyan-300 to-cyan-800 border-2 border-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.25)]"></div>
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-cyan-200 border-2 border-cyan-50"></div>
-              <div className="absolute bottom-8 left-7 w-4 h-16 rounded-full bg-cyan-500 origin-top rotate-[-18deg]"></div>
-              <div className="absolute bottom-8 right-7 w-4 h-16 rounded-full bg-cyan-600 origin-top rotate-[18deg]"></div>
+              <img
+                src={playerReactionSprite}
+                alt=""
+                className="absolute w-auto max-w-none -translate-x-1/2"
+                style={{
+                  imageRendering: 'pixelated',
+                  height: `${playerReactionMeta.height}px`,
+                  left: `calc(50% + ${playerReactionMeta.x}px)`,
+                  bottom: `${-5 + playerReactionMeta.y}px`,
+                  filter: `
+                    drop-shadow(3px 0 0 rgba(255,255,255,0.92))
+                    drop-shadow(-3px 0 0 rgba(255,255,255,0.92))
+                    drop-shadow(0 3px 0 rgba(255,255,255,0.92))
+                    drop-shadow(0 -3px 0 rgba(255,255,255,0.92))
+                    drop-shadow(0 0 18px rgba(239,68,68,0.9))
+                  `
+                }}
+                draggable={false}
+              />
             </div>
 
-            <div className="absolute bottom-0 h-32 w-20 transition-[filter] duration-75"
-              style={{ left: `${opponentStageX}%`, transform: `translate(-50%, ${opponentStageY}px) scaleX(${opponentFacing})`, filter: reaction?.valid ? 'drop-shadow(0 0 18px #10b981) brightness(1.35)' : 'none' }}>
-              <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-24 rounded-t-full border-2 ${reaction?.valid ? 'bg-gradient-to-b from-emerald-200 to-emerald-700 border-emerald-200' : reaction?.phase === 'tell' ? 'bg-gradient-to-b from-orange-200 to-pink-800 border-orange-200' : 'bg-gradient-to-b from-pink-300 to-pink-800 border-pink-200'}`}></div>
-              <div className={`absolute bottom-20 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full border-2 ${reaction?.valid ? 'bg-emerald-200 border-emerald-50' : reaction?.phase === 'tell' ? 'bg-orange-200 border-orange-50' : 'bg-pink-200 border-pink-50'}`}></div>
-              <div className={`absolute bottom-8 left-7 w-4 h-16 rounded-full origin-top ${reaction?.scenario === 'dash' && reaction?.phase === 'active' ? 'rotate-[-48deg]' : reaction?.phase === 'tell' ? 'rotate-[-60deg]' : 'rotate-[-18deg]'} ${reaction?.valid ? 'bg-emerald-500' : reaction?.phase === 'tell' ? 'bg-orange-400' : 'bg-pink-500'}`}></div>
-              <div className={`absolute bottom-8 right-7 w-4 h-16 rounded-full origin-top ${reaction?.scenario === 'dash' && reaction?.phase === 'active' ? 'rotate-[48deg]' : reaction?.phase === 'tell' ? 'rotate-[60deg]' : 'rotate-[18deg]'} ${reaction?.valid ? 'bg-emerald-700' : reaction?.phase === 'tell' ? 'bg-orange-600' : 'bg-pink-700'}`}></div>
+            <div className="absolute bottom-0 h-80 w-[34rem] transition-[filter] duration-75"
+              style={{ left: `${opponentStageX}%`, transform: `translate(-50%, ${opponentStageY}px) scaleX(${opponentFacing})` }}>
+              <img
+                src={opponentReactionSprite}
+                alt=""
+                className="absolute w-auto max-w-none -translate-x-1/2"
+                style={{
+                  imageRendering: 'pixelated',
+                  height: `${opponentReactionMeta.height}px`,
+                  left: `calc(50% + ${opponentReactionMeta.x}px)`,
+                  bottom: `${-5 + opponentReactionMeta.y}px`,
+                  filter: `
+                    drop-shadow(3px 0 0 rgba(255,255,255,0.92))
+                    drop-shadow(-3px 0 0 rgba(255,255,255,0.92))
+                    drop-shadow(0 3px 0 rgba(255,255,255,0.92))
+                    drop-shadow(0 -3px 0 rgba(255,255,255,0.92))
+                    drop-shadow(0 0 18px ${reaction?.valid ? 'rgba(16,185,129,0.95)' : 'rgba(34,211,238,0.85)'})
+                  `
+                }}
+                draggable={false}
+              />
             </div>
           </div>
         )}
 
         {/* Progress Tracker UI */}
-        <div className="text-center w-80">
+        <div className="relative z-10 text-center w-80">
           <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-2">
              {trainingMode === 'precision' ? 'Total Attempts' : trainingMode === 'reaction' ? 'Reaction Clears' : 'Current Streak'}
           </div>

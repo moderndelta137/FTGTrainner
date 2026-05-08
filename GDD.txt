@@ -8,25 +8,27 @@ A specialized training environment designed to teach, test, and diagnose fightin
 
 2. Core Gameplay Modes & Loop
 
-The game offers two distinct training modes to cater to different practice philosophies:
+The game offers three distinct training modes to cater to different practice philosophies:
 
 Streak Mode: The player must execute the target move successfully a specified number of times in a row. A single dropped input resets the streak to zero.
 
 Precision Test: Evaluates performance over a set number of total attempts. It tracks overall failure rate, average execution speed, and average precision percentage.
 
+Reaction Test: The player waits for an opponent cue, then completes the selected command inside a timing window. The mode supports automatic scenario selection based on move type, plus manual Dash In / Jump In scenario selection.
+
 Gameplay Loop:
 
-Drill Setup: Player selects a move (Motion, Charge, Grappler, or Combos), chooses the Training Mode, sets the target amount, and selects their Player Side (P1/Right or P2/Left).
+Drill Setup: Player selects a move (Motion, Charge, Grappler, Combos, or Custom), chooses the Training Mode, sets the target amount, selects the Player Side (P1/Right or P2/Left), and optionally chooses a Reaction Scenario.
 
 Execution: The player attempts the move. A dynamic "Desired Input" UI visualizes progress in real-time (e.g., charge bars filling, 360 circles sweeping).
 
-Evaluation: The engine evaluates raw frame data against specific move tolerances, tracking strict inputs vs. fuzzy (sloppy) inputs.
+Evaluation: The engine evaluates raw frame data against specific move tolerances, tracking strict inputs vs. fuzzy (sloppy) inputs. In Reaction Test, the engine also checks early/late input timing against the opponent scenario's valid reaction window.
 
-Feedback & Diagnostics: * Success: Triggers a procedural hit sound, a heavy camera shake, an animated "Combo Success" splash banner (detailing time and precision), and increments a massive arcade-style "X HIT" counter. The sequence UI elements perform a satisfying independent fade-out wave.
+Feedback & Diagnostics: * Success: Triggers a procedural hit sound, a heavy camera shake, an animated "Combo Success" or "Reaction Success" splash banner (detailing time, reaction frames, and precision), and increments a massive arcade-style "X HIT" counter. The sequence UI elements perform a satisfying independent fade-out wave.
 
 Failure: Triggers a dissonant error buzzer, a glitchy horizontal camera shake, and a stylized diagnostic banner detailing the exact failure reason (e.g., "Input was too slow", "Pressed MP too early").
 
-Completion & Results: Upon reaching the target, a Results Screen displays the session's Success Rate, Average Execution Time, Average Precision, and a detailed log of every attempt. Best records are saved persistently.
+Completion & Results: Upon reaching the target, a Results Screen displays the session's Success Rate, Average Execution Time, Average Precision, Average Reaction (when applicable), and a detailed log of every attempt. Best records are saved persistently.
 
 3. UI/UX Layout & Aesthetics
 
@@ -34,11 +36,13 @@ The UI embraces a modern arcade aesthetic with neon accents (cyan, magenta, yell
 
 Main Menu / Command List: A tabbed interface categorizing moves. Displays personal best records (Success Rate, Time, Precision) for each move pulled from local storage.
 
-Options Modal: Allows players to adjust master volume, toggle camera shake, tweak X/Y shake strengths, completely remap keyboard bindings, and remap Gamepad buttons with responsive Xbox-style icons.
+Options Modal: Allows players to adjust master volume, toggle camera shake, tweak X/Y shake strengths, change the training background theme, open the Sprite Debug Lab, completely remap keyboard bindings, and remap Gamepad buttons with responsive Xbox-style icons.
 
 Training UI - Left Panel (Input History): A scrolling vertical log. Valid strict inputs are Cyan. Fuzzy/sloppy inputs are Yellow. Errors are marked with Red. Displays exact frame counts and pressed actions.
 
-Training UI - Center Stage: * Desired Input Bar: Displays required arrows/buttons. Charge moves feature a background fill clipping upward. 360 moves feature a sweeping conic-gradient.
+Training UI - Center Stage: * Desired Input Bar: Displays required arrows/buttons. Charge moves feature a background fill clipping upward. 360 moves feature a sweeping conic-gradient. Desired input colors adapt to the selected background theme for readability.
+
+Reaction Stage: Uses a simplified 2D training-room perspective with a thick ground line. The player and opponent use silhouette-style PNG sprites with glow/outline treatment for high contrast. Player attacks briefly swap to Hadoken or Anti-Air poses after a successful command. The opponent switches between idle, dash tell, dash active, jump tell, and jump active poses based on the live Reaction Test scenario.
 
 Splash Banners: Centered diagnostic text for failures or success metrics.
 
@@ -46,7 +50,29 @@ Training UI - Right Screen: A massive, animated "X HIT" combo counter.
 
 Training UI - Bottom Panel (Virtual Controller): An arcade-style directional layout and 6-button layout (LP, MP, HP, LK, MK, HK) that lights up dynamically with physical inputs.
 
-4. Input Parser & Logic Systems
+Sprite Debug Lab: A dedicated debug screen opened from Options. It can play sprite pose sequences, preview individual player/opponent reaction sprites, and tune runtime sprite metadata (height, X offset, Y offset). Metadata can be saved to local storage or reset to defaults.
+
+Background Themes: The training screen supports selectable CSS-rendered themes (Grid Room, Night Room, Warm Dojo). Themes control stage colors and Desired Input contrast colors.
+
+4. Visual Assets & Sprite System
+
+Reaction Character Style
+
+Player Character: Black silhouette fighter with a red headband accessory. Current poses include idle, Hadoken, and Anti-Air.
+
+Opponent Character: Black silhouette fighter with a cyan belt/sash accessory. Current poses include idle, dash tell, dash active, jump tell, and jump active.
+
+Asset Location: Reaction sprites live in public/assets/sprites/reaction/. Generation prompts live in prompts/ for reproducibility.
+
+Sprite Metadata
+
+The sprite render system does not rely only on PNG bounds. Each pose has metadata for height, X offset, and Y offset. This allows wide or crouched poses to maintain believable character scale without squashing or shrinking the pose to fit a fixed frame.
+
+Persistent Tuning
+
+Sprite metadata defaults are defined in code and can be overridden at runtime through the Sprite Debug Lab. Saved values persist in local storage under ftg_reaction_sprite_meta.
+
+5. Input Parser & Logic Systems
 
 The input reader utilizes a 60fps locked requestAnimationFrame loop, featuring distinct logical branches and specific game-accurate leniencies:
 
@@ -74,7 +100,15 @@ Gamepad API: Native polling for HTML5 Gamepads. Supports D-Pad and Analog Stick 
 
 Side Mirroring: When set to P2 (Left), the engine dynamically reverses all horizontal logic and UI rendering to allow practice from the opposite side of the screen.
 
-5. Audio & Game Feel (Juice)
+Reaction Scenario Logic
+
+Dash In: Opponent starts farther away, shows a tell phase, then dashes forward across a fixed-duration movement window. The valid input window is defined in frames and can mark too-early or too-late attempts.
+
+Jump In: Opponent starts farther away, shows a short tell phase, then follows an arcing jump path. Anti-air style moves automatically select this scenario when Reaction Scenario is set to Auto.
+
+Input Lockout: After reaction failures, the engine requires neutral input before accepting the next attempt, preventing held-button repeats from immediately causing extra failures.
+
+6. Audio & Game Feel (Juice)
 
 Procedural Synthesizer (Web Audio API): No external audio files are used. Sounds are mathematically generated for zero-latency playback.
 
@@ -94,7 +128,7 @@ Heavy Shake (Success): Forceful diagonal knockback paired with screen scaling an
 
 Error Shake (Failure): Stuttering horizontal vibration simulating a game-freeze glitch.
 
-6. Development Roadmap
+7. Development Roadmap
 
 Phase 1: Neutral State Engine (Completed)
 
@@ -108,13 +142,21 @@ Phase 1: Neutral State Engine (Completed)
 
 [x] Procedural audio and screen shake feedback.
 
-Phase 2: Action States & Buffer Windows (Next Focus)
+[x] Reaction Test mode with Dash In / Jump In scenarios.
 
-Introduce simulated character states (standing, crouching, jumping, attacking).
+[x] Silhouette sprite assets for player and opponent reaction mode.
 
-Implement Hitstop (screen freeze) logic and the 5-frame reversal/link buffer.
+[x] Themeable training background and theme-aware Desired Input colors.
 
-Introduce "Too Early" and "Too Late" timing evaluations based on actionable state frames rather than just neutral gaps.
+[x] Runtime sprite metadata tuning through Sprite Debug Lab.
+
+Phase 2: Action States & Buffer Windows (In Progress)
+
+[x] Introduce simulated visual character states for reaction mode (idle, dash, jump, fireball, anti-air).
+
+[ ] Implement Hitstop (screen freeze) logic and the 5-frame reversal/link buffer.
+
+[x] Introduce "Too Early" and "Too Late" timing evaluations for reaction scenarios.
 
 Phase 3: Chained Moves & Advanced Combos
 
