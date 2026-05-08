@@ -145,19 +145,19 @@ const REACTION_SCENARIOS = {
 };
 
 const REACTION_PLAYER_SPRITES = {
-  idle: '/public/assets/sprites/reaction/player_idle.png',
-  hadoken: '/public/assets/sprites/reaction/player_hadoken_pose.png',
-  antiAir: '/public/assets/sprites/reaction/player_anti_air_pose.png',
-  onHit: '/public/assets/sprites/reaction/player_onhit.png'
+  idle: './public/assets/sprites/reaction/player_idle.png',
+  hadoken: './public/assets/sprites/reaction/player_hadoken_pose.png',
+  antiAir: './public/assets/sprites/reaction/player_anti_air_pose.png',
+  onHit: './public/assets/sprites/reaction/player_onhit.png'
 };
 
 const REACTION_OPPONENT_SPRITES = {
-  idle: '/public/assets/sprites/reaction/opponent_idle.png',
-  dashTell: '/public/assets/sprites/reaction/opponent_dash_tell.png',
-  dashActive: '/public/assets/sprites/reaction/opponent_dash_active.png',
-  jumpTell: '/public/assets/sprites/reaction/opponent_jump_tell.png',
-  jumpActive: '/public/assets/sprites/reaction/opponent_jump_active.png',
-  onHit: '/public/assets/sprites/reaction/opponent_onhit.png'
+  idle: './public/assets/sprites/reaction/opponent_idle.png',
+  dashTell: './public/assets/sprites/reaction/opponent_dash_tell.png',
+  dashActive: './public/assets/sprites/reaction/opponent_dash_active.png',
+  jumpTell: './public/assets/sprites/reaction/opponent_jump_tell.png',
+  jumpActive: './public/assets/sprites/reaction/opponent_jump_active.png',
+  onHit: './public/assets/sprites/reaction/opponent_onhit.png'
 };
 
 const SPRITE_METADATA_STORAGE_KEY = 'ftg_reaction_sprite_meta';
@@ -676,6 +676,7 @@ function App() {
   
   // Settings
   const [volume, setVolume] = useState(50);
+  const [bgmVolume, setBgmVolume] = useState(40);
   const [enableShake, setEnableShake] = useState(true);
   const [shakeStrengthX, setShakeStrengthX] = useState(15);
   const [shakeStrengthY, setShakeStrengthY] = useState(15);
@@ -688,6 +689,8 @@ function App() {
   const [, setRenderTick] = useState(0);
 
   const loopRef = useRef();
+  const bgmAudioRef = useRef(null);
+  const bgmUnlockedRef = useRef(false);
   const diagnosticRef = useRef([]); 
   const bannerTimeoutRef = useRef(null);
   const resetTriggerRef = useRef(false);
@@ -752,6 +755,8 @@ function App() {
      
      const savedVol = localStorage.getItem('ftg_vol');
      if (savedVol) setVolume(parseInt(savedVol));
+     const savedBgmVol = localStorage.getItem('ftg_bgm_vol');
+     if (savedBgmVol) setBgmVolume(parseInt(savedBgmVol));
      const savedShake = localStorage.getItem('ftg_shake');
      if (savedShake) setEnableShake(savedShake !== 'false');
      const savedShakeX = localStorage.getItem('ftg_shake_x');
@@ -775,10 +780,51 @@ function App() {
   useEffect(() => { localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(customMoves)); }, [customMoves]);
   useEffect(() => { localStorage.setItem('ftg_padmap', JSON.stringify(padMap)); }, [padMap]);
   useEffect(() => { localStorage.setItem('ftg_vol', volume.toString()); }, [volume]);
+  useEffect(() => { localStorage.setItem('ftg_bgm_vol', bgmVolume.toString()); }, [bgmVolume]);
   useEffect(() => { localStorage.setItem('ftg_shake', enableShake.toString()); }, [enableShake]);
   useEffect(() => { localStorage.setItem('ftg_shake_x', shakeStrengthX.toString()); }, [shakeStrengthX]);
   useEffect(() => { localStorage.setItem('ftg_shake_y', shakeStrengthY.toString()); }, [shakeStrengthY]);
   useEffect(() => { localStorage.setItem('ftg_background_theme', backgroundTheme); }, [backgroundTheme]);
+
+  useEffect(() => {
+    const bgm = new Audio('./public/assets/BGM/TrainningRoom.mp3');
+    bgm.loop = true;
+    bgm.preload = 'auto';
+    bgm.volume = bgmVolume / 100;
+    bgmAudioRef.current = bgm;
+
+    return () => {
+      bgm.pause();
+      bgmAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const bgm = bgmAudioRef.current;
+    if (!bgm) return;
+    bgm.volume = bgmVolume / 100;
+    if (bgmVolume <= 0) {
+      bgm.pause();
+    } else if (bgmUnlockedRef.current) {
+      bgm.play().catch(() => {});
+    }
+  }, [bgmVolume]);
+
+  useEffect(() => {
+    const unlockBgm = () => {
+      bgmUnlockedRef.current = true;
+      const bgm = bgmAudioRef.current;
+      if (!bgm || bgmVolume <= 0) return;
+      bgm.play().catch(() => {});
+    };
+
+    window.addEventListener('pointerdown', unlockBgm);
+    window.addEventListener('keydown', unlockBgm);
+    return () => {
+      window.removeEventListener('pointerdown', unlockBgm);
+      window.removeEventListener('keydown', unlockBgm);
+    };
+  }, [bgmVolume]);
 
   useEffect(() => {
     if (screen !== 'spriteDebug') return;
@@ -1684,9 +1730,16 @@ function App() {
               
               <div className="mb-4">
                  <label className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4 flex justify-between">
-                    <span>Audio Volume</span> <span>{volume}%</span>
+                    <span>SFX Volume</span> <span>{volume}%</span>
                  </label>
                  <input type="range" min="0" max="100" value={volume} onChange={(e)=>setVolume(e.target.value)} className="w-full accent-cyan-400" />
+              </div>
+
+              <div className="mb-4">
+                 <label className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4 flex justify-between">
+                    <span>BGM Volume</span> <span>{bgmVolume}%</span>
+                 </label>
+                 <input type="range" min="0" max="100" value={bgmVolume} onChange={(e)=>setBgmVolume(Number(e.target.value))} className="w-full accent-pink-400" />
               </div>
               
               <div className="mb-6">
