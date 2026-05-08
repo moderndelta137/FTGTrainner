@@ -2085,7 +2085,7 @@ function App() {
 
   if (screen === 'menu') {
     return (
-      <div className="h-screen bg-zinc-950 text-white flex flex-col items-center justify-center px-6 py-5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none relative overflow-hidden">
+      <div className="h-screen bg-zinc-950 text-white flex flex-col items-center justify-start px-6 pt-24 pb-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none relative overflow-hidden">
         
         <button onClick={() => setShowOptions(true)} className="absolute top-6 right-7 text-zinc-500 hover:text-cyan-400 transition-colors flex items-center gap-2">
            <span className="text-xl">⚙️</span><span className="font-bold tracking-widest text-sm">OPTIONS</span>
@@ -2096,7 +2096,7 @@ function App() {
         </h1>
         <p className="text-zinc-400 font-mono tracking-widest mb-4 text-sm">SELECT YOUR DRILL</p>
 
-        <div className="flex w-full flex-1 min-h-0 max-h-[calc(100vh-8rem)] max-w-7xl mx-auto border-2 border-zinc-800 rounded-lg overflow-hidden shadow-2xl bg-zinc-900">
+        <div className="flex w-full flex-1 min-h-0 max-h-[calc(100vh-13.5rem)] max-w-7xl mx-auto border-2 border-zinc-800 rounded-lg overflow-hidden shadow-2xl bg-zinc-900">
           
           <div className="w-60 bg-zinc-950 flex flex-col border-r border-zinc-800">
             <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 text-xs font-black text-zinc-500 tracking-widest uppercase">Categories</div>
