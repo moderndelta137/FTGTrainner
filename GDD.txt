@@ -50,7 +50,7 @@ Training UI - Right Screen: A massive, animated "X HIT" combo counter.
 
 Training UI - Bottom Panel (Virtual Controller): An arcade-style directional layout and 6-button layout (LP, MP, HP, LK, MK, HK) that lights up dynamically with physical inputs.
 
-Sprite Debug Lab: A dedicated debug screen opened from Options. It can play sprite pose sequences, preview individual player/opponent reaction sprites, and tune runtime sprite metadata (height, X offset, Y offset). Metadata can be saved to local storage or reset to defaults.
+Sprite Debug Lab: A dedicated debug screen opened from Options. It can play sprite pose sequences, preview individual player/opponent reaction sprites, and tune runtime sprite metadata (height, X offset, Y offset). Metadata can be saved to public/assets/sprites/reaction/metadata.json through the local dev server, with browser cache used only as a fallback when file saving is unavailable.
 
 Background Themes: The training screen supports selectable CSS-rendered themes (Grid Room, Night Room, Warm Dojo). Themes control stage colors and Desired Input contrast colors.
 
@@ -70,7 +70,7 @@ The sprite render system does not rely only on PNG bounds. Each pose has metadat
 
 Persistent Tuning
 
-Sprite metadata defaults are defined in code and can be overridden at runtime through the Sprite Debug Lab. Saved values persist in local storage under ftg_reaction_sprite_meta.
+Sprite metadata defaults are stored in public/assets/sprites/reaction/metadata.json, with code-level defaults as a fallback. The Sprite Debug Lab writes saved values back to that metadata file through the local dev server. Browser storage under ftg_reaction_sprite_meta is kept only as a fallback for static hosting or failed file writes.
 
 5. Input Parser & Logic Systems
 

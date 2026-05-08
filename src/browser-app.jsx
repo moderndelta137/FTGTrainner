@@ -161,6 +161,7 @@ const REACTION_OPPONENT_SPRITES = {
 };
 
 const SPRITE_METADATA_STORAGE_KEY = 'ftg_reaction_sprite_meta';
+const SPRITE_METADATA_FILE = './public/assets/sprites/reaction/metadata.json';
 
 const REACTION_SPRITE_DEFS = [
   { id: 'player_idle', label: 'Player Idle', src: REACTION_PLAYER_SPRITES.idle },
@@ -300,6 +301,25 @@ const ON_HIT_POSE_FRAMES = 45;
 const mergeSpriteMeta = (saved = {}) => Object.fromEntries(
   Object.entries(DEFAULT_REACTION_SPRITE_META).map(([id, meta]) => [id, { ...meta, ...(saved[id] || {}) }])
 );
+
+const loadSpriteMetaFile = async () => {
+  const response = await fetch(SPRITE_METADATA_FILE, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Metadata file returned ${response.status}`);
+  return response.json();
+};
+
+const saveSpriteMetaFile = async (metadata) => {
+  const response = await fetch('./api/sprite-metadata', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(metadata)
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || 'Metadata save endpoint is unavailable. Restart the dev server.');
+  }
+};
 
 const getReactionPlayerAttackSpriteId = (moveId) => {
   if (['236P', '236236P'].includes(moveId)) return 'player_hadoken';
@@ -682,6 +702,7 @@ function App() {
   const [shakeStrengthY, setShakeStrengthY] = useState(15);
   const [backgroundTheme, setBackgroundTheme] = useState('grid');
   const [spriteMeta, setSpriteMeta] = useState(() => mergeSpriteMeta());
+  const [spriteMetaStatus, setSpriteMetaStatus] = useState('Loaded built-in sprite metadata.');
   const [spriteDebugSelected, setSpriteDebugSelected] = useState('opponent_idle');
   const [spriteDebugFrame, setSpriteDebugFrame] = useState('opponent_idle');
   const [spriteDebugSequence, setSpriteDebugSequence] = useState('opponent_idle');
@@ -765,14 +786,23 @@ function App() {
      if (savedShakeY) setShakeStrengthY(parseInt(savedShakeY));
      const savedBackgroundTheme = localStorage.getItem('ftg_background_theme');
      if (savedBackgroundTheme && TRAINING_BACKGROUND_THEMES[savedBackgroundTheme]) setBackgroundTheme(savedBackgroundTheme);
-     const savedSpriteMeta = localStorage.getItem(SPRITE_METADATA_STORAGE_KEY);
-     if (savedSpriteMeta) {
-       try {
-         setSpriteMeta(mergeSpriteMeta(JSON.parse(savedSpriteMeta)));
-       } catch (error) {
-         setSpriteMeta(mergeSpriteMeta());
-       }
-     }
+      loadSpriteMetaFile()
+        .then(metadata => {
+          setSpriteMeta(mergeSpriteMeta(metadata));
+          setSpriteMetaStatus('Loaded project metadata file.');
+        })
+        .catch(() => {
+          const savedSpriteMeta = localStorage.getItem(SPRITE_METADATA_STORAGE_KEY);
+          if (!savedSpriteMeta) return;
+
+          try {
+            setSpriteMeta(mergeSpriteMeta(JSON.parse(savedSpriteMeta)));
+            setSpriteMetaStatus('Loaded browser-only metadata cache.');
+          } catch (error) {
+            setSpriteMeta(mergeSpriteMeta());
+            setSpriteMetaStatus('Loaded built-in sprite metadata.');
+          }
+        });
   }, []);
 
   // Save Settings
@@ -1680,16 +1710,25 @@ function App() {
     }));
   };
 
-  const saveSpriteMeta = () => {
+  const saveSpriteMeta = async () => {
     const merged = mergeSpriteMeta(spriteMeta);
     setSpriteMeta(merged);
-    localStorage.setItem(SPRITE_METADATA_STORAGE_KEY, JSON.stringify(merged));
+    setSpriteMetaStatus('Saving metadata file...');
+    try {
+      await saveSpriteMetaFile(merged);
+      localStorage.setItem(SPRITE_METADATA_STORAGE_KEY, JSON.stringify(merged));
+      setSpriteMetaStatus('Saved to public/assets/sprites/reaction/metadata.json.');
+    } catch (error) {
+      localStorage.setItem(SPRITE_METADATA_STORAGE_KEY, JSON.stringify(merged));
+      setSpriteMetaStatus(`Saved to browser cache only: ${error.message}`);
+    }
   };
 
   const resetSpriteMeta = () => {
     const defaults = mergeSpriteMeta();
     setSpriteMeta(defaults);
     localStorage.removeItem(SPRITE_METADATA_STORAGE_KEY);
+    setSpriteMetaStatus('Reset in the editor. Save to update the metadata file.');
   };
 
   const renderSpritePreview = (spriteId, facing = 1) => {
@@ -1945,7 +1984,7 @@ function App() {
             </div>
 
             <div className="mt-6 p-3 rounded border border-zinc-800 bg-zinc-900 text-[10px] font-mono text-zinc-500 leading-relaxed">
-              Runtime metadata saves to localStorage. Game screen uses saved values immediately after Save.
+              {spriteMetaStatus}
             </div>
           </div>
         </div>

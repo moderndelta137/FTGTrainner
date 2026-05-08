@@ -1,0 +1,52 @@
+{
+  "player_idle": {
+    "height": 320,
+    "x": 0,
+    "y": 0
+  },
+  "player_hadoken": {
+    "height": 314,
+    "x": 35,
+    "y": 0
+  },
+  "player_anti_air": {
+    "height": 440,
+    "x": 77,
+    "y": 113
+  },
+  "player_onhit": {
+    "height": 326,
+    "x": -83,
+    "y": 0
+  },
+  "opponent_idle": {
+    "height": 320,
+    "x": 0,
+    "y": 0
+  },
+  "opponent_dash_tell": {
+    "height": 246,
+    "x": -8,
+    "y": 2
+  },
+  "opponent_dash_active": {
+    "height": 261,
+    "x": -107,
+    "y": 2
+  },
+  "opponent_jump_tell": {
+    "height": 217,
+    "x": 34,
+    "y": 5
+  },
+  "opponent_jump_active": {
+    "height": 258,
+    "x": -87,
+    "y": 140
+  },
+  "opponent_onhit": {
+    "height": 338,
+    "x": 81,
+    "y": 0
+  }
+}
