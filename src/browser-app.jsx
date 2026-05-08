@@ -147,7 +147,8 @@ const REACTION_SCENARIOS = {
 const REACTION_PLAYER_SPRITES = {
   idle: '/public/assets/sprites/reaction/player_idle.png',
   hadoken: '/public/assets/sprites/reaction/player_hadoken_pose.png',
-  antiAir: '/public/assets/sprites/reaction/player_anti_air_pose.png'
+  antiAir: '/public/assets/sprites/reaction/player_anti_air_pose.png',
+  onHit: '/public/assets/sprites/reaction/player_onhit.png'
 };
 
 const REACTION_OPPONENT_SPRITES = {
@@ -155,7 +156,8 @@ const REACTION_OPPONENT_SPRITES = {
   dashTell: '/public/assets/sprites/reaction/opponent_dash_tell.png',
   dashActive: '/public/assets/sprites/reaction/opponent_dash_active.png',
   jumpTell: '/public/assets/sprites/reaction/opponent_jump_tell.png',
-  jumpActive: '/public/assets/sprites/reaction/opponent_jump_active.png'
+  jumpActive: '/public/assets/sprites/reaction/opponent_jump_active.png',
+  onHit: '/public/assets/sprites/reaction/opponent_onhit.png'
 };
 
 const SPRITE_METADATA_STORAGE_KEY = 'ftg_reaction_sprite_meta';
@@ -164,11 +166,13 @@ const REACTION_SPRITE_DEFS = [
   { id: 'player_idle', label: 'Player Idle', src: REACTION_PLAYER_SPRITES.idle },
   { id: 'player_hadoken', label: 'Player Hadoken', src: REACTION_PLAYER_SPRITES.hadoken },
   { id: 'player_anti_air', label: 'Player Anti-Air', src: REACTION_PLAYER_SPRITES.antiAir },
+  { id: 'player_onhit', label: 'Player On-Hit', src: REACTION_PLAYER_SPRITES.onHit },
   { id: 'opponent_idle', label: 'Opponent Idle', src: REACTION_OPPONENT_SPRITES.idle },
   { id: 'opponent_dash_tell', label: 'Opponent Dash Tell', src: REACTION_OPPONENT_SPRITES.dashTell },
   { id: 'opponent_dash_active', label: 'Opponent Dash Active', src: REACTION_OPPONENT_SPRITES.dashActive },
   { id: 'opponent_jump_tell', label: 'Opponent Jump Tell', src: REACTION_OPPONENT_SPRITES.jumpTell },
-  { id: 'opponent_jump_active', label: 'Opponent Jump Active', src: REACTION_OPPONENT_SPRITES.jumpActive }
+  { id: 'opponent_jump_active', label: 'Opponent Jump Active', src: REACTION_OPPONENT_SPRITES.jumpActive },
+  { id: 'opponent_onhit', label: 'Opponent On-Hit', src: REACTION_OPPONENT_SPRITES.onHit }
 ];
 
 const REACTION_SPRITE_BY_ID = Object.fromEntries(REACTION_SPRITE_DEFS.map(sprite => [sprite.id, sprite]));
@@ -177,11 +181,13 @@ const DEFAULT_REACTION_SPRITE_META = {
   player_idle: { height: 320, x: 0, y: 0 },
   player_hadoken: { height: 320, x: 6, y: 0 },
   player_anti_air: { height: 330, x: 0, y: -2 },
+  player_onhit: { height: 326, x: -4, y: 0 },
   opponent_idle: { height: 320, x: 0, y: 0 },
   opponent_dash_tell: { height: 330, x: -8, y: 2 },
   opponent_dash_active: { height: 350, x: -22, y: 6 },
   opponent_jump_tell: { height: 325, x: 6, y: 0 },
-  opponent_jump_active: { height: 335, x: -8, y: -18 }
+  opponent_jump_active: { height: 335, x: -8, y: -18 },
+  opponent_onhit: { height: 326, x: 4, y: 0 }
 };
 
 const SPRITE_DEBUG_SEQUENCES = [
@@ -190,13 +196,15 @@ const SPRITE_DEBUG_SEQUENCES = [
   { id: 'player_anti_air_anim', label: 'Player Anti-Air', frames: ['player_idle', 'player_anti_air'] },
   { id: 'player_hadoken', label: 'Hadoken Only', frames: ['player_hadoken'] },
   { id: 'player_anti_air', label: 'Anti-Air Only', frames: ['player_anti_air'] },
+  { id: 'player_onhit', label: 'Player On-Hit', frames: ['player_onhit'] },
   { id: 'opponent_idle', label: 'Opponent Idle', frames: ['opponent_idle'] },
   { id: 'opponent_dash', label: 'Opponent Dash', frames: ['opponent_idle', 'opponent_dash_tell', 'opponent_dash_active'] },
   { id: 'opponent_jump', label: 'Opponent Jump', frames: ['opponent_idle', 'opponent_jump_tell', 'opponent_jump_active'] },
   { id: 'opponent_dash_tell', label: 'Dash Tell Only', frames: ['opponent_dash_tell'] },
   { id: 'opponent_dash_active', label: 'Dash Active Only', frames: ['opponent_dash_active'] },
   { id: 'opponent_jump_tell', label: 'Jump Tell Only', frames: ['opponent_jump_tell'] },
-  { id: 'opponent_jump_active', label: 'Jump Active Only', frames: ['opponent_jump_active'] }
+  { id: 'opponent_jump_active', label: 'Jump Active Only', frames: ['opponent_jump_active'] },
+  { id: 'opponent_onhit', label: 'Opponent On-Hit', frames: ['opponent_onhit'] }
 ];
 
 const TRAINING_BACKGROUND_THEMES = {
@@ -287,6 +295,7 @@ const TRAINING_BACKGROUND_THEMES = {
 };
 
 const PLAYER_ATTACK_POSE_FRAMES = 36;
+const ON_HIT_POSE_FRAMES = 45;
 
 const mergeSpriteMeta = (saved = {}) => Object.fromEntries(
   Object.entries(DEFAULT_REACTION_SPRITE_META).map(([id, meta]) => [id, { ...meta, ...(saved[id] || {}) }])
@@ -696,6 +705,8 @@ function App() {
     lastReactionFrames: null,
     playerAttackSpriteId: null,
     playerAttackSpriteUntilFrame: -1,
+    playerOnHitUntilFrame: -1,
+    opponentOnHitUntilFrame: -1,
     inputLockUntilNeutral: false,
     lastFailureFrame: -1,
     shakeFrames: 0,
@@ -908,6 +919,7 @@ function App() {
     s.currentStreak++;
     s.playerAttackSpriteId = getReactionPlayerAttackSpriteId(targetMove);
     s.playerAttackSpriteUntilFrame = s.totalFrames + PLAYER_ATTACK_POSE_FRAMES;
+    if (trainingMode === 'reaction') s.opponentOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
     setHitCounter(s.currentStreak);
 
     const lenFrames = s.sequenceFrames;
@@ -955,6 +967,7 @@ function App() {
     s.attemptsThisSession++;
     s.currentStreak = 0;
     setHitCounter(0);
+    if (trainingMode === 'reaction' && failTitle === 'TOO LATE') s.playerOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
 
     if (trainingMode === 'streak') {
        s.successesThisSession = 0; s.attemptsThisSession = 0; setSessionData([]);
@@ -1245,7 +1258,7 @@ function App() {
           stateRef.current.totalFrames = 0; stateRef.current.stepGlows = {};
           stateRef.current.chargeGlowFrame = -999; stateRef.current.spinGlowFrame = -999;
           stateRef.current.wasChargeReady = false; stateRef.current.was360Ready = false;
-          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
+          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.playerOnHitUntilFrame = -1; stateRef.current.opponentOnHitUntilFrame = -1; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
           stateRef.current.keys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.effectiveKeys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.successesThisSession = 0; stateRef.current.failuresThisSession = 0; stateRef.current.attemptsThisSession = 0;
@@ -1452,6 +1465,8 @@ function App() {
        lastReactionFrames: null,
        playerAttackSpriteId: null,
        playerAttackSpriteUntilFrame: -1,
+       playerOnHitUntilFrame: -1,
+       opponentOnHitUntilFrame: -1,
        inputLockUntilNeutral: false,
        lastFailureFrame: -1,
        shakeFrames: 0, shakeType: null,
@@ -2289,13 +2304,17 @@ function App() {
   const opponentStageY = reaction ? reaction.y : 0;
   const opponentFacing = playerSide === 'P1' ? 1 : -1;
   const playerFacing = playerSide === 'P1' ? 1 : -1;
+  const playerOnHitActive = stateRef.current.totalFrames < stateRef.current.playerOnHitUntilFrame;
   const playerAttackSpriteActive = stateRef.current.totalFrames < stateRef.current.playerAttackSpriteUntilFrame;
-  const playerReactionSpriteId = playerAttackSpriteActive
+  const playerReactionSpriteId = playerOnHitActive
+    ? 'player_onhit'
+    : playerAttackSpriteActive
     ? (stateRef.current.playerAttackSpriteId || 'player_idle')
     : 'player_idle';
   const playerReactionSprite = REACTION_SPRITE_BY_ID[playerReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.player_idle.src;
   const playerReactionMeta = spriteMeta[playerReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[playerReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.player_idle;
-  const opponentReactionSpriteId = getReactionOpponentSpriteId(reaction);
+  const opponentOnHitActive = stateRef.current.totalFrames < stateRef.current.opponentOnHitUntilFrame;
+  const opponentReactionSpriteId = opponentOnHitActive ? 'opponent_onhit' : getReactionOpponentSpriteId(reaction);
   const opponentReactionSprite = REACTION_SPRITE_BY_ID[opponentReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.opponent_idle.src;
   const opponentReactionMeta = spriteMeta[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.opponent_idle;
   const isSuccessLinger = !!successBanner;
