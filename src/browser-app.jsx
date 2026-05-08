@@ -102,6 +102,64 @@ const ERROR_MAP = {
   '360': '360 Motion', '720': '720 Motion'
 };
 
+const INPUT_GLOW_FRAMES = 45;
+
+const BUTTON_COLORS = {
+  LP: { text: '#f9a8d4', bg: 'bg-pink-300', border: 'border-pink-200', shadow: 'shadow-[0_0_15px_#f9a8d4]' },
+  MP: { text: '#ec4899', bg: 'bg-pink-500', border: 'border-pink-400', shadow: 'shadow-[0_0_15px_#ec4899]' },
+  HP: { text: '#be185d', bg: 'bg-pink-700', border: 'border-pink-600', shadow: 'shadow-[0_0_15px_#be185d]' },
+  LK: { text: '#67e8f9', bg: 'bg-cyan-300', border: 'border-cyan-200', shadow: 'shadow-[0_0_15px_#67e8f9]' },
+  MK: { text: '#22d3ee', bg: 'bg-cyan-400', border: 'border-cyan-300', shadow: 'shadow-[0_0_15px_#22d3ee]' },
+  HK: { text: '#0891b2', bg: 'bg-cyan-600', border: 'border-cyan-500', shadow: 'shadow-[0_0_15px_#0891b2]' },
+};
+
+const getButtonColor = (button) => BUTTON_COLORS[button] || null;
+
+const REACTION_SCENARIOS = {
+  dash: {
+    id: 'dash',
+    label: 'Dash In',
+    validStart: 0,
+    validEnd: 24,
+    tellFrames: 28,
+    endFrame: 24,
+    startX: 72,
+    endX: 52,
+    startY: 0,
+    endY: 0
+  },
+  jump: {
+    id: 'jump',
+    label: 'Jump In',
+    validStart: 6,
+    validEnd: 36,
+    tellFrames: 12,
+    tellCountsAsValid: false,
+    endFrame: 49,
+    startX: 72,
+    endX: 50,
+    startY: 0,
+    endY: 0,
+    apex: -155
+  }
+};
+
+const makeReactionRound = (scenarioId) => {
+  const scenario = REACTION_SCENARIOS[scenarioId] || REACTION_SCENARIOS.dash;
+  return {
+    scenario: scenario.id,
+    phase: 'delay',
+    delayFrame: 0,
+    delayFrames: 45 + Math.floor(Math.random() * 76),
+    actionFrame: 0,
+    x: scenario.startX,
+    y: scenario.startY,
+    valid: false,
+    lastResult: null,
+    reactionFrames: null
+  };
+};
+
 const MOVE_LIST = {
   // MOTION
   '236P': { tab: 'MOTION', name: 'Hadouken', desc: 'Quarter Circle Forward + Any Punch', sequence: [2, 3, 6, 'P'] },
@@ -126,7 +184,92 @@ const MOVE_LIST = {
   'combo2': { tab: 'COMBOS', name: 'Advanced Cancel', desc: 'Forward+HP > Forward+HP > Hadouken', sequence: ['6+HP', '6+HP', 2, 3, 6, 'P'] }
 };
 
-const TABS = ['MOTION', 'CHARGE', 'GRAPPLER', 'COMBOS'];
+const TABS = ['MOTION', 'CHARGE', 'GRAPPLER', 'COMBOS', 'CUSTOM'];
+
+const CUSTOM_STORAGE_KEY = 'ftg_custom_moves';
+
+const cloneEditorSteps = (steps) => steps.map(step => ({ ...step, id: `step_${Date.now()}_${Math.random().toString(36).slice(2)}` }));
+
+const COMMAND_PRESETS = [
+  { id: 'dir', group: 'DIRECTION', label: 'Direction', steps: [{ type: 'direction', dir: 6 }] },
+  { id: 'lp', group: 'BUTTON', label: 'LP', steps: [{ type: 'button', button: 'LP' }] },
+  { id: 'lk', group: 'BUTTON', label: 'LK', steps: [{ type: 'button', button: 'LK' }] },
+  { id: 'mp', group: 'BUTTON', label: 'MP', steps: [{ type: 'button', button: 'MP' }] },
+  { id: 'mk', group: 'BUTTON', label: 'MK', steps: [{ type: 'button', button: 'MK' }] },
+  { id: 'hp', group: 'BUTTON', label: 'HP', steps: [{ type: 'button', button: 'HP' }] },
+  { id: 'hk', group: 'BUTTON', label: 'HK', steps: [{ type: 'button', button: 'HK' }] },
+  { id: 'p', group: 'BUTTON', label: 'Any Punch', steps: [{ type: 'anyButton', value: 'P' }] },
+  { id: 'k', group: 'BUTTON', label: 'Any Kick', steps: [{ type: 'anyButton', value: 'K' }] },
+  { id: '6hp', group: 'SIMUL', label: 'Forward + HP', steps: [{ type: 'simul', dir: 6, button: 'HP' }] },
+  { id: '2mk', group: 'SIMUL', label: 'Down + MK', steps: [{ type: 'simul', dir: 2, button: 'MK' }] },
+  { id: '236p', group: 'MOTION', label: '236P', steps: [{ type: 'direction', dir: 2 }, { type: 'direction', dir: 3 }, { type: 'direction', dir: 6 }, { type: 'anyButton', value: 'P' }] },
+  { id: '214k', group: 'MOTION', label: '214K', steps: [{ type: 'direction', dir: 2 }, { type: 'direction', dir: 1 }, { type: 'direction', dir: 4 }, { type: 'anyButton', value: 'K' }] },
+  { id: '623p', group: 'MOTION', label: '623P', steps: [{ type: 'direction', dir: 6 }, { type: 'direction', dir: 2 }, { type: 'direction', dir: 3 }, { type: 'anyButton', value: 'P' }] },
+  { id: '41236p', group: 'MOTION', label: '41236P', steps: [{ type: 'direction', dir: 4 }, { type: 'direction', dir: 1 }, { type: 'direction', dir: 2 }, { type: 'direction', dir: 3 }, { type: 'direction', dir: 6 }, { type: 'anyButton', value: 'P' }] },
+  { id: 'charge', group: 'BUTTON', label: 'Charge', steps: [{ type: 'charge', chargeDir: 'back', chargeFrames: 45 }] },
+  { id: 'spin360', group: 'BUTTON', label: '360', steps: [{ type: 'spin', spin: '360', spinFrames: 35 }] },
+  { id: 'spin720', group: 'BUTTON', label: '720', steps: [{ type: 'spin', spin: '720', spinFrames: 55 }] },
+  { id: 'wait', group: 'UTILITY', label: 'Wait', steps: [{ type: 'wait', waitFrames: 30 }] }
+];
+
+const createBlankEditor = () => ({
+  name: 'New Custom Combo',
+  steps: []
+});
+
+const stepToCommand = (step) => {
+  if (step.type === 'direction') return parseInt(step.dir) || 6;
+  if (step.type === 'button') return step.button || 'HP';
+  if (step.type === 'anyButton') return step.value || 'P';
+  if (step.type === 'simul') return `${parseInt(step.dir) || 6}+${step.button || 'HP'}`;
+  if (step.type === 'charge') {
+    const isDown = step.chargeDir === 'down';
+    return { type: 'charge', dirs: isDown ? [1, 2, 3] : [1, 4, 7], frames: Math.max(1, parseInt(step.chargeFrames) || 45), icon: isDown ? 2 : 4, label: isDown ? 'Down' : 'Back' };
+  }
+  if (step.type === 'spin') {
+    const count = step.spin === '720' ? 2 : 1;
+    return { type: 'spin', frames: Math.max(1, parseInt(step.spinFrames) || (count === 2 ? 55 : 35)), count, label: step.spin || '360' };
+  }
+  if (step.type === 'wait') return { type: 'wait', frames: Math.max(1, parseInt(step.waitFrames) || 30) };
+  return null;
+};
+
+const isCommandObject = (step, type = null) => typeof step === 'object' && step !== null && (!type || step.type === type);
+
+const commandLabel = (step) => {
+  if (isCommandObject(step, 'charge')) return `Charge ${step.label} ${step.frames}f`;
+  if (isCommandObject(step, 'spin')) return `${step.label} Motion ${step.frames}f`;
+  if (isCommandObject(step, 'wait')) return `Wait ${step.frames}f`;
+  return ERROR_MAP[step] || step;
+};
+
+const compileCustomMove = (editor, id) => {
+  const sequence = editor.steps.map(stepToCommand).filter(step => step !== null && step !== undefined && step !== '');
+  const move = {
+    tab: 'CUSTOM',
+    custom: true,
+    name: editor.name.trim() || 'Custom Combo',
+    desc: sequence.map(commandLabel).join(' > '),
+    sequence,
+    editor: {
+      name: editor.name.trim() || 'Custom Combo',
+      steps: editor.steps.map(step => ({ ...step }))
+    }
+  };
+
+  if (id) move.id = id;
+  return move;
+};
+
+const hydrateEditor = (move) => {
+  if (move?.editor) {
+    return {
+      name: move.editor.name || move.name || 'Custom Combo',
+      steps: cloneEditorSteps(move.editor.steps || [])
+    };
+  }
+  return createBlankEditor();
+};
 
 const DEFAULT_KEYMAP = {
    up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
@@ -217,6 +360,7 @@ const getChargeFrames = (hArray, dirs) => {
     let foundCharge = false;
     for (let i = hArray.length - 1; i >= 0; i--) {
         let h = hArray[i];
+        if (h.marker) continue;
         if (dirs.includes(h.dir)) {
             chargeFrames += h.frames;
             foundCharge = true;
@@ -233,6 +377,7 @@ const get360Status = (hArray, framesLimit, loopsRequired) => {
     let recentDirs = [];
     let frameCount = 0;
     for (let i = hArray.length - 1; i >= 0; i--) {
+        if (hArray[i].marker) continue;
         frameCount += hArray[i].frames;
         if (frameCount > framesLimit) break;
         if (hArray[i].dir !== 5) recentDirs.unshift(hArray[i].dir);
@@ -267,7 +412,25 @@ const get360Status = (hArray, framesLimit, loopsRequired) => {
     return { isReady: maxProgress >= targetLength, percent: Math.min(100, (maxProgress / targetLength) * 100) };
 };
 
+const getLastInputEntry = (history) => {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (!history[i].marker) return history[i];
+  }
+  return history[0];
+};
+
 const DirIcon = ({ dir, className, flip = false }) => {
+  if (isCommandObject(dir, 'charge')) {
+      return (
+        <div className={`relative flex items-center justify-center ${className}`}>
+          <DirIcon dir={dir.icon} flip={flip} className="w-full h-full text-yellow-500" />
+          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[0.35em] font-black text-yellow-500">CHG</span>
+        </div>
+      );
+  }
+  if (isCommandObject(dir, 'spin')) return <DirIcon dir={dir.label} className={className} flip={flip} />;
+  if (isCommandObject(dir, 'wait')) return <span className={`font-black ${className} text-zinc-400`}>{dir.frames}f</span>;
+
   if (typeof dir === 'string') {
       if (dir.includes('+')) {
          const [d, a] = dir.split('+');
@@ -290,8 +453,10 @@ const DirIcon = ({ dir, className, flip = false }) => {
            </div>
          );
       }
-      if (dir === 'P' || ['LP','MP','HP'].includes(dir)) return <span className={`font-black ${className} text-pink-400 drop-shadow-md`}>{dir}</span>;
-      if (dir === 'K' || ['LK','MK','HK'].includes(dir)) return <span className={`font-black ${className} text-cyan-400 drop-shadow-md`}>{dir}</span>;
+      const buttonColor = getButtonColor(dir);
+      if (buttonColor) return <span className={`font-black ${className} drop-shadow-md`} style={{ color: buttonColor.text }}>{dir}</span>;
+      if (dir === 'P') return <span className={`font-black ${className} text-pink-400 drop-shadow-md`}>{dir}</span>;
+      if (dir === 'K') return <span className={`font-black ${className} text-cyan-400 drop-shadow-md`}>{dir}</span>;
   }
 
   if (dir === 5) return <span className={`font-black ${className}`}>N</span>;
@@ -316,6 +481,13 @@ function App() {
   const [activeTab, setActiveTab] = useState('MOTION');
   const [targetMove, setTargetMove] = useState('236P');
   const [successTarget, setSuccessTarget] = useState(10);
+  const [reactionScenario, setReactionScenario] = useState('auto');
+  const [customMoves, setCustomMoves] = useState({});
+  const [editingCustomId, setEditingCustomId] = useState(null);
+  const [customDraft, setCustomDraft] = useState(createBlankEditor());
+  const [selectedStepId, setSelectedStepId] = useState(null);
+  const [draggingStepId, setDraggingStepId] = useState(null);
+  const [editorError, setEditorError] = useState('');
   
   const [progressCount, setProgressCount] = useState(0);
   const [stats, setStats] = useState({ successes: 0, failures: 0 });
@@ -334,8 +506,8 @@ function App() {
   // Settings
   const [volume, setVolume] = useState(50);
   const [enableShake, setEnableShake] = useState(true);
-  const [shakeStrengthX, setShakeStrengthX] = useState(50);
-  const [shakeStrengthY, setShakeStrengthY] = useState(50);
+  const [shakeStrengthX, setShakeStrengthX] = useState(15);
+  const [shakeStrengthY, setShakeStrengthY] = useState(15);
   
   const [, setRenderTick] = useState(0);
 
@@ -343,10 +515,20 @@ function App() {
   const diagnosticRef = useRef([]); 
   const bannerTimeoutRef = useRef(null);
   const resetTriggerRef = useRef(false);
+  const allMoves = { ...MOVE_LIST, ...customMoves };
+  const curTargetMove = allMoves[targetMove] || MOVE_LIST['236P'];
   
   const stateRef = useRef({
     totalFrames: 0,
     stepGlows: {},
+    chargeGlowFrame: -999,
+    spinGlowFrame: -999,
+    wasChargeReady: false,
+    was360Ready: false,
+    reaction: null,
+    lastReactionFrames: null,
+    inputLockUntilNeutral: false,
+    lastFailureFrame: -1,
     shakeFrames: 0,
     shakeType: null, // 'light' | 'heavy' | 'error'
     
@@ -357,6 +539,7 @@ function App() {
     nextId: 1,
     progress: 0,
     framesSinceLastProgress: 0,
+    waitStepFrames: 0,
     sloppyInputs: 0,
     sequenceFrames: 0,
     sequenceSloppy: 0,
@@ -380,6 +563,8 @@ function App() {
   useEffect(() => {
      const savedStats = localStorage.getItem('ftg_trainer_stats');
      if (savedStats) setRecords(JSON.parse(savedStats));
+     const savedCustom = localStorage.getItem(CUSTOM_STORAGE_KEY);
+     if (savedCustom) setCustomMoves(JSON.parse(savedCustom));
      const savedMap = localStorage.getItem('ftg_keymap');
      if (savedMap) setKeyMap(JSON.parse(savedMap));
      const savedPadMap = localStorage.getItem('ftg_padmap');
@@ -397,6 +582,7 @@ function App() {
 
   // Save Settings
   useEffect(() => { localStorage.setItem('ftg_keymap', JSON.stringify(keyMap)); }, [keyMap]);
+  useEffect(() => { localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(customMoves)); }, [customMoves]);
   useEffect(() => { localStorage.setItem('ftg_padmap', JSON.stringify(padMap)); }, [padMap]);
   useEffect(() => { localStorage.setItem('ftg_vol', volume.toString()); }, [volume]);
   useEffect(() => { localStorage.setItem('ftg_shake', enableShake.toString()); }, [enableShake]);
@@ -462,12 +648,142 @@ function App() {
   }, [screen]);
 
   // --- Input Evaluation Engine ---
+  const isAntiAirMove = (moveDef, moveId = targetMove) => {
+    const seq = moveDef?.sequence || [];
+    for (let i = 0; i <= seq.length - 3; i++) {
+      if (seq[i] === 6 && seq[i + 1] === 2 && seq[i + 2] === 3) return true;
+    }
+    return /623|shoryu|anti/i.test(`${moveId} ${moveDef?.name || ''} ${moveDef?.desc || ''}`);
+  };
+
+  const resolveReactionScenario = (moveDef, moveId = targetMove) => {
+    if (reactionScenario !== 'auto') return reactionScenario;
+    return isAntiAirMove(moveDef, moveId) ? 'jump' : 'dash';
+  };
+
+  const beginReactionRound = (s, moveDef = curTargetMove, moveId = targetMove) => {
+    if (trainingMode !== 'reaction') return;
+    s.reaction = makeReactionRound(resolveReactionScenario(moveDef, moveId));
+    s.lastReactionFrames = null;
+  };
+
+  const addReactionMarker = (s, label, matchType = 'strict') => {
+    const last = s.history[s.history.length - 1];
+    if (last?.marker && last.label === label) return;
+    s.history.push({
+      id: `marker_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      marker: true,
+      label,
+      frames: 0,
+      matchType
+    });
+    if (s.history.length > 40) s.history.shift();
+  };
+
+  const getProgressValue = (s) => trainingMode === 'precision' ? s.attemptsThisSession : s.successesThisSession;
+
+  const completeSequence = (s, seq, moveDef) => {
+    if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; }
+
+    if (trainingMode === 'reaction') {
+      const scenario = REACTION_SCENARIOS[s.reaction?.scenario] || REACTION_SCENARIOS.dash;
+      const actionFrame = s.reaction?.actionFrame ?? -1;
+      const tellIsValid = s.reaction?.phase === 'tell' && scenario.tellCountsAsValid !== false;
+      const failEntry = getLastInputEntry(s.history);
+      if (!s.reaction || (s.reaction.phase !== 'active' && !tellIsValid)) {
+        const tooEarlyBy = s.reaction?.phase === 'tell'
+          ? Math.max(1, (scenario.tellFrames || 0) - (s.reaction.tellFrame || 0) + scenario.validStart)
+          : Math.max(1, (s.reaction?.delayFrames || 0) - (s.reaction?.delayFrame || 0) + (scenario.tellFrames || 0) + scenario.validStart);
+        registerFailure(s, failEntry, `Too early by ${tooEarlyBy}f. Wait for ${scenario.label} cue.`, 'TOO EARLY');
+        return;
+      }
+      if (!tellIsValid && actionFrame < scenario.validStart) {
+        registerFailure(s, failEntry, `Too early by ${scenario.validStart - actionFrame}f. Correct window starts at ${scenario.validStart}f.`, 'TOO EARLY');
+        return;
+      }
+      if (!tellIsValid && actionFrame > scenario.validEnd) {
+        registerFailure(s, failEntry, `Too late by ${actionFrame - scenario.validEnd}f. Correct window ended at ${scenario.validEnd}f.`, 'TOO LATE');
+        return;
+      }
+      s.lastReactionFrames = tellIsValid ? 0 : actionFrame - scenario.validStart;
+    }
+
+    s.successesThisSession++;
+    s.attemptsThisSession++;
+    s.currentStreak++;
+    setHitCounter(s.currentStreak);
+
+    const lenFrames = s.sequenceFrames;
+    const lenSecs = (lenFrames / 60).toFixed(2);
+    let baseSeqLength = seq.length + (moveDef.charge ? 1 : 0) + (moveDef.require360 ? moveDef.require360.count * 4 : 0);
+    const prec = Math.round((baseSeqLength / (baseSeqLength + s.sequenceSloppy)) * 100);
+
+    const dataPoint = {
+      id: Date.now(),
+      type: 'success',
+      frames: lenFrames,
+      seconds: lenSecs,
+      precision: prec,
+      reactionFrames: trainingMode === 'reaction' ? s.lastReactionFrames : null,
+      scenario: trainingMode === 'reaction' ? s.reaction?.scenario : null
+    };
+    setSessionData(prev => [...prev, dataPoint]);
+
+    setSuccessBanner(dataPoint);
+    if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
+    bannerTimeoutRef.current = setTimeout(() => setSuccessBanner(null), 2500);
+
+    s.progress = 0; s.framesSinceLastProgress = 0; s.waitStepFrames = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
+    if (trainingMode === 'reaction') beginReactionRound(s, moveDef);
+
+    setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
+    setProgressCount(getProgressValue(s));
+
+    if (trainingMode === 'streak' && s.successesThisSession >= successTarget) setScreen('results');
+    else if (trainingMode === 'reaction' && s.successesThisSession >= successTarget) setScreen('results');
+    else if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+  };
+
+  const registerFailure = (s, pEntry, failDetail, failTitle = "DROPPED COMBO") => {
+    if (s.lastFailureFrame === s.totalFrames) return;
+    s.lastFailureFrame = s.totalFrames;
+    playSFX('error', s.volume);
+    if (s.enableShake) { s.shakeFrames = 15; s.shakeType = 'error'; }
+
+    const diagObj = { id: Date.now(), title: failTitle, detail: failDetail, step: s.progress };
+    setDiagnostics(prev => [...prev.slice(-1), diagObj]);
+    diagnosticRef.current = [...diagnosticRef.current.slice(-1), diagObj];
+
+    s.failuresThisSession++;
+    s.attemptsThisSession++;
+    s.currentStreak = 0;
+    setHitCounter(0);
+
+    if (trainingMode === 'streak') {
+       s.successesThisSession = 0; s.attemptsThisSession = 0; setSessionData([]);
+    } else {
+       setSessionData(prev => [...prev, { id: Date.now(), type: 'error', reason: failDetail }]);
+    }
+
+    if (pEntry) { pEntry.matchType = 'error'; pEntry.errorReason = failDetail; }
+    s.progress = 0; s.framesSinceLastProgress = 0; s.waitStepFrames = 0; s.sloppyInputs = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
+    if (trainingMode === 'reaction') {
+      s.inputLockUntilNeutral = true;
+      beginReactionRound(s, allMoves[targetMove] || MOVE_LIST['236P']);
+    }
+
+    setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
+    setProgressCount(getProgressValue(s));
+
+    if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+  };
+
   const evaluateInput = (pEntry) => {
     let s = stateRef.current;
-    let moveDef = MOVE_LIST[targetMove];
+    let moveDef = allMoves[targetMove] || MOVE_LIST['236P'];
     let seq = moveDef.sequence;
     let expected = seq[s.progress];
-    let lastEntry = s.history[s.history.length - 2] || s.history[0];
+    let lastEntry = getLastInputEntry(s.history.slice(0, -1)) || s.history[0];
 
     // Priority extraction for simultaneous inputs
     let actionPressed = null;
@@ -517,17 +833,27 @@ function App() {
 
       if (actionPressed && consumedAction !== actionPressed) {
           let nextExp = seq[s.progress];
+          let nextPlusMatch = false;
+          if (typeof nextExp === 'string' && nextExp.includes('+')) {
+              const [nextDirStr, nextAction] = nextExp.split('+');
+              nextPlusMatch = pEntry.dir === parseInt(nextDirStr) && (
+                  (nextAction === 'P' && isPunch(actionPressed)) ||
+                  (nextAction === 'K' && isKick(actionPressed)) ||
+                  nextAction === actionPressed
+              );
+          }
           if (s.progress < seq.length && (
               (nextExp === 'P' && isPunch(actionPressed)) || 
               (nextExp === 'K' && isKick(actionPressed)) || 
-              (nextExp === actionPressed)
+              (nextExp === actionPressed) ||
+              nextPlusMatch
           )) {
               s.progress++;
               consumedAction = actionPressed;
               s.stepGlows[s.progress - 1] = s.totalFrames;
           } else {
               failed = true;
-              failDetail = `Pressed ${ERROR_MAP[actionPressed] || actionPressed} too early. Expected ${ERROR_MAP[nextExp] || nextExp}.`;
+              failDetail = `Pressed ${ERROR_MAP[actionPressed] || actionPressed} too early. Expected ${commandLabel(nextExp)}.`;
           }
       }
 
@@ -578,32 +904,7 @@ function App() {
           }
           
           if (s.progress === seq.length) {
-            if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; }
-
-            s.successesThisSession++;
-            s.attemptsThisSession++;
-            s.currentStreak++;
-            setHitCounter(s.currentStreak);
-
-            const lenFrames = s.sequenceFrames;
-            const lenSecs = (lenFrames / 60).toFixed(2);
-            let baseSeqLength = seq.length + (moveDef.charge ? 1 : 0) + (moveDef.require360 ? moveDef.require360.count * 4 : 0);
-            const prec = Math.round((baseSeqLength / (baseSeqLength + s.sequenceSloppy)) * 100);
-            
-            const dataPoint = { id: Date.now(), type: 'success', frames: lenFrames, seconds: lenSecs, precision: prec };
-            setSessionData(prev => [...prev, dataPoint]);
-
-            setSuccessBanner(dataPoint);
-            if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
-            bannerTimeoutRef.current = setTimeout(() => setSuccessBanner(null), 2500);
-
-            s.progress = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
-
-            setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
-            setProgressCount(trainingMode === 'streak' ? s.successesThisSession : s.attemptsThisSession);
-
-            if (trainingMode === 'streak' && s.successesThisSession >= successTarget) setScreen('results');
-            else if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+            completeSequence(s, seq, moveDef);
           }
       }
     } 
@@ -611,7 +912,7 @@ function App() {
     if (!matched || failed) {
       if (!failed && actionPressed) {
         failed = true;
-        let expectedStr = ERROR_MAP[expected] || expected;
+        let expectedStr = commandLabel(expected);
         if (expectedStr === undefined && typeof expected === 'number') expectedStr = `Direction (${expected})`;
         failDetail = `Expected ${expectedStr}, got ${ERROR_MAP[actionPressed] || actionPressed}.`;
 
@@ -619,34 +920,13 @@ function App() {
             if (moveDef.charge) failDetail = `Charge not ready! Needed ${moveDef.charge.frames}f of ${moveDef.charge.label}.`;
             if (moveDef.require360) failDetail = `Motion incomplete! Needed ${moveDef.require360.label} before pressing ${actionPressed}.`;
         }
+        if (isCommandObject(expected, 'charge')) failDetail = `Charge not ready! Needed ${expected.frames}f of ${expected.label}.`;
+        if (isCommandObject(expected, 'spin')) failDetail = `Motion incomplete! Needed ${expected.label} before pressing ${actionPressed}.`;
+        if (isCommandObject(expected, 'wait')) failDetail = `Wait failed! No inputs for ${expected.frames}f.`;
       }
 
       if (failed) {
-        playSFX('error', s.volume);
-        if (s.enableShake) { s.shakeFrames = 15; s.shakeType = 'error'; }
-
-        const diagObj = { id: Date.now(), title: failTitle, detail: failDetail, step: s.progress };
-        setDiagnostics(prev => [...prev.slice(-1), diagObj]); 
-        diagnosticRef.current = [...diagnosticRef.current.slice(-1), diagObj];
-        
-        s.failuresThisSession++;
-        s.attemptsThisSession++;
-        s.currentStreak = 0;
-        setHitCounter(0);
-
-        if (trainingMode === 'streak') {
-           s.successesThisSession = 0; s.attemptsThisSession = 0; setSessionData([]);
-        } else {
-           setSessionData(prev => [...prev, { id: Date.now(), type: 'error', reason: failDetail }]);
-        }
-
-        pEntry.matchType = 'error'; pEntry.errorReason = failDetail;
-        s.progress = 0; s.framesSinceLastProgress = 0; s.sloppyInputs = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
-
-        setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
-        setProgressCount(trainingMode === 'streak' ? s.successesThisSession : s.attemptsThisSession);
-
-        if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+        registerFailure(s, pEntry, failDetail, failTitle);
       } else if (pEntry.dir !== 5) {
         let isHoldingPrev = false;
         if (s.progress > 0) {
@@ -659,6 +939,65 @@ function App() {
         if (!isHoldingPrev && s.progress > 0) s.sloppyInputs++;
       }
     }
+  };
+
+  const updateReactionRound = (s) => {
+    if (trainingMode !== 'reaction') return false;
+    const moveDef = allMoves[targetMove] || MOVE_LIST['236P'];
+    if (!s.reaction) beginReactionRound(s, moveDef);
+    const r = s.reaction;
+    const scenario = REACTION_SCENARIOS[r.scenario] || REACTION_SCENARIOS.dash;
+
+    if (r.phase === 'delay') {
+      r.delayFrame++;
+      r.x = scenario.startX;
+      r.y = scenario.startY;
+      r.valid = false;
+      if (r.delayFrame >= r.delayFrames) {
+        r.phase = scenario.tellFrames ? 'tell' : 'active';
+        r.actionFrame = 0;
+        r.tellFrame = 0;
+      }
+      return false;
+    }
+
+    if (r.phase === 'tell') {
+      r.tellFrame++;
+      r.x = scenario.startX;
+      r.y = 0;
+      r.valid = scenario.tellCountsAsValid !== false;
+      if (r.valid && r.tellFrame === 1) addReactionMarker(s, 'TIMING START', 'strict');
+      if (r.tellFrame >= scenario.tellFrames) {
+        r.phase = 'active';
+        r.actionFrame = 0;
+      }
+      return false;
+    }
+
+    if (r.phase !== 'active') return false;
+
+    r.actionFrame++;
+    if (r.actionFrame === scenario.validStart) addReactionMarker(s, 'TIMING START', 'strict');
+    if (r.actionFrame === scenario.validEnd + 1) addReactionMarker(s, 'TIMING END', 'fuzzy');
+    const t = Math.min(1, r.actionFrame / scenario.endFrame);
+
+    if (scenario.id === 'dash') {
+      const eased = 1 - Math.pow(1 - t, 3);
+      r.x = scenario.startX + (scenario.endX - scenario.startX) * eased;
+      r.y = 0;
+    } else {
+      r.x = scenario.startX + (scenario.endX - scenario.startX) * t;
+      r.y = Math.sin(Math.PI * t) * scenario.apex;
+    }
+
+    r.valid = r.actionFrame >= scenario.validStart && r.actionFrame <= scenario.validEnd;
+
+    if (r.actionFrame > scenario.endFrame) {
+      registerFailure(s, getLastInputEntry(s.history), `Too late. ${scenario.label} reached you.`, 'TOO LATE');
+      return true;
+    }
+
+    return false;
   };
 
   // --- Game Loop ---
@@ -707,12 +1046,16 @@ function App() {
       if (resetTriggerRef.current) {
           resetTriggerRef.current = false;
           stateRef.current.totalFrames = 0; stateRef.current.stepGlows = {};
+          stateRef.current.chargeGlowFrame = -999; stateRef.current.spinGlowFrame = -999;
+          stateRef.current.wasChargeReady = false; stateRef.current.was360Ready = false;
+          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
           stateRef.current.keys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.effectiveKeys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.successesThisSession = 0; stateRef.current.failuresThisSession = 0; stateRef.current.attemptsThisSession = 0;
-          stateRef.current.progress = 0; stateRef.current.framesSinceLastProgress = 0; stateRef.current.sloppyInputs = 0;
+          stateRef.current.progress = 0; stateRef.current.framesSinceLastProgress = 0; stateRef.current.waitStepFrames = 0; stateRef.current.sloppyInputs = 0;
           stateRef.current.sequenceFrames = 0; stateRef.current.sequenceSloppy = 0; stateRef.current.currentStreak = 0;
           stateRef.current.history = [{ id: Date.now(), dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, frames: 0, matchType: null }];
+          beginReactionRound(stateRef.current, allMoves[targetMove] || MOVE_LIST['236P']);
           setProgressCount(0); setHitCounter(0); setStats({ successes: 0, failures: 0 }); setSessionData([]); setDiagnostics([]);
           diagnosticRef.current = []; setSuccessBanner(null);
       }
@@ -721,6 +1064,7 @@ function App() {
       s.totalFrames++;
       if (s.progress > 0) s.sequenceFrames++;
       if (s.shakeFrames > 0) s.shakeFrames--;
+      const reactionStoppedFrame = updateReactionRound(s);
 
       let gp = getGamepadState(padMap);
       let k = s.keys;
@@ -735,15 +1079,99 @@ function App() {
       let currentDir = getDirection(eff, playerSide);
       let cLp = eff.lp; let cMp = eff.mp; let cHp = eff.hp;
       let cLk = eff.lk; let cMk = eff.mk; let cHk = eff.hk;
-      let lastEntry = s.history[s.history.length - 1];
+      let lastEntry = getLastInputEntry(s.history);
 
       let dirChanged = currentDir !== lastEntry.dir;
       let actionChanged = (cLp !== lastEntry.lp || cMp !== lastEntry.mp || cHp !== lastEntry.hp || cLk !== lastEntry.lk || cMk !== lastEntry.mk || cHk !== lastEntry.hk);
       let anyActionPressed = (cLp || cMp || cHp || cLk || cMk || cHk);
+      if (trainingMode === 'reaction' && s.inputLockUntilNeutral) {
+        if (currentDir === 5 && !anyActionPressed) s.inputLockUntilNeutral = false;
+        setRenderTick(t => t + 1);
+        loopRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      if (reactionStoppedFrame) {
+        setRenderTick(t => t + 1);
+        loopRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      if (trainingMode === 'reaction') {
+        const r = s.reaction;
+        const actionStarted = actionChanged && anyActionPressed;
+        const scenario = REACTION_SCENARIOS[r?.scenario] || REACTION_SCENARIOS.dash;
+        const tellIsValid = r?.phase === 'tell' && scenario.tellCountsAsValid !== false;
+        const tooEarly = r && (r.phase === 'delay' || (r.phase === 'tell' && !tellIsValid) || (r.phase === 'active' && r.actionFrame < scenario.validStart));
+        if (actionStarted && tooEarly) {
+          const tooEarlyBy = r.phase === 'active'
+            ? scenario.validStart - r.actionFrame
+            : r.phase === 'tell'
+              ? Math.max(1, (scenario.tellFrames || 0) - (r.tellFrame || 0) + scenario.validStart)
+              : Math.max(1, (r.delayFrames || 0) - (r.delayFrame || 0) + (scenario.tellFrames || 0) + scenario.validStart);
+          registerFailure(s, lastEntry, `Too early by ${tooEarlyBy}f. Wait for ${scenario.label} cue.`, 'TOO EARLY');
+          setRenderTick(t => t + 1);
+          loopRef.current = requestAnimationFrame(loop);
+          return;
+        }
+      }
+      let activeMoveForPassive = allMoves[targetMove] || MOVE_LIST['236P'];
+      let expectedPassive = activeMoveForPassive.sequence[s.progress];
+
+      const advancePassiveStep = () => {
+        if (s.progress === 0) s.sequenceFrames = 1;
+        s.progress++;
+        s.framesSinceLastProgress = 0;
+        s.waitStepFrames = 0;
+        s.stepGlows[s.progress - 1] = s.totalFrames;
+        if (s.progress === activeMoveForPassive.sequence.length) {
+          completeSequence(s, activeMoveForPassive.sequence, activeMoveForPassive);
+          return true;
+        }
+        return false;
+      };
+
+      if (isCommandObject(expectedPassive, 'charge')) {
+        if (getChargeFrames(s.history, expectedPassive.dirs) >= expectedPassive.frames) {
+          if (advancePassiveStep()) {
+            setRenderTick(t => t + 1);
+            loopRef.current = requestAnimationFrame(loop);
+            return;
+          }
+          expectedPassive = activeMoveForPassive.sequence[s.progress];
+        }
+      }
+
+      if (isCommandObject(expectedPassive, 'spin')) {
+        if (get360Status(s.history, expectedPassive.frames, expectedPassive.count).isReady) {
+          if (advancePassiveStep()) {
+            setRenderTick(t => t + 1);
+            loopRef.current = requestAnimationFrame(loop);
+            return;
+          }
+          expectedPassive = activeMoveForPassive.sequence[s.progress];
+        }
+      }
+
+      if (isCommandObject(expectedPassive, 'wait')) {
+        if (currentDir === 5 && !anyActionPressed) {
+          s.waitStepFrames++;
+          if (s.waitStepFrames >= expectedPassive.frames) {
+            if (advancePassiveStep()) {
+              setRenderTick(t => t + 1);
+              loopRef.current = requestAnimationFrame(loop);
+              return;
+            }
+          }
+        } else {
+          registerFailure(s, lastEntry, `Wait failed! No inputs for ${expectedPassive.frames}f.`, "DROPPED COMBO");
+        }
+      } else {
+        s.waitStepFrames = 0;
+      }
 
       if (!dirChanged && !actionChanged) {
         lastEntry.frames += 1;
-        let prevMatched = s.progress > 0 ? MOVE_LIST[targetMove].sequence[s.progress - 1] : null;
+        let activeMove = allMoves[targetMove] || MOVE_LIST['236P'];
+        let prevMatched = s.progress > 0 ? activeMove.sequence[s.progress - 1] : null;
         let isHoldingPrev = false;
         if (typeof prevMatched === 'number' && currentDir === prevMatched) isHoldingPrev = true;
         else if (typeof prevMatched === 'string' && prevMatched.includes('+')) {
@@ -768,40 +1196,37 @@ function App() {
 
       // Proactive Timeout Evaluation 
       if (s.progress > 0) {
-         let prevMatched = MOVE_LIST[targetMove].sequence[s.progress - 1];
+         let activeMove = allMoves[targetMove] || MOVE_LIST['236P'];
+         let currentExpected = activeMove.sequence[s.progress];
+         if (isCommandObject(currentExpected)) {
+            setRenderTick(t => t + 1);
+            loopRef.current = requestAnimationFrame(loop);
+            return;
+         }
+         if (trainingMode === 'reaction') {
+            setRenderTick(t => t + 1);
+            loopRef.current = requestAnimationFrame(loop);
+            return;
+         }
+         let prevMatched = activeMove.sequence[s.progress - 1];
          let isComboLink = typeof prevMatched === 'string' && (prevMatched.includes('P') || prevMatched.includes('K') || prevMatched.includes('HP'));
          let timeoutLimit = isComboLink ? 45 : 12; 
          
          if (s.framesSinceLastProgress > timeoutLimit) {
-            s.failuresThisSession++; s.attemptsThisSession++;
-            s.currentStreak = 0; setHitCounter(0);
-
             let failDetail = `Input was too slow. You took longer than ${timeoutLimit} frames.`;
-            let diagObj = { id: Date.now(), title: "DROPPED COMBO", detail: failDetail, step: s.progress };
-            
-            playSFX('error', s.volume);
-            if (s.enableShake) { s.shakeFrames = 15; s.shakeType = 'error'; }
-
-            setDiagnostics(prev => [...prev.slice(-1), diagObj]);
-            diagnosticRef.current = [...diagnosticRef.current.slice(-1), diagObj];
-            
-            if (trainingMode === 'streak') {
-               s.successesThisSession = 0; s.attemptsThisSession = 0; setSessionData([]);
-            } else {
-               setSessionData(prev => [...prev, { id: Date.now(), type: 'error', reason: failDetail }]);
-            }
-            
-            let pEntry = s.history[s.history.length - 1];
-            pEntry.matchType = 'error'; pEntry.errorReason = failDetail;
-            
-            s.progress = 0; s.framesSinceLastProgress = 0; s.sloppyInputs = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
-
-            setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
-            setProgressCount(trainingMode === 'streak' ? s.successesThisSession : s.attemptsThisSession);
-
-            if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+            let pEntry = getLastInputEntry(s.history);
+            registerFailure(s, pEntry, failDetail, "DROPPED COMBO");
          }
       }
+
+      const glowMove = allMoves[targetMove] || MOVE_LIST['236P'];
+      const chargeReadyNow = glowMove.charge ? getChargeFrames(s.history, glowMove.charge.dirs) >= glowMove.charge.frames : false;
+      const spinReadyNow = glowMove.require360 ? get360Status(s.history, glowMove.require360.frames, glowMove.require360.count).isReady : false;
+
+      if (chargeReadyNow && !s.wasChargeReady) s.chargeGlowFrame = s.totalFrames;
+      if (spinReadyNow && !s.was360Ready) s.spinGlowFrame = s.totalFrames;
+      s.wasChargeReady = chargeReadyNow;
+      s.was360Ready = spinReadyNow;
       
       setRenderTick(t => t + 1);
       loopRef.current = requestAnimationFrame(loop);
@@ -814,20 +1239,28 @@ function App() {
       cancelAnimationFrame(loopRef.current);
       if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
     };
-  }, [screen, targetMove, trainingMode, successTarget, playerSide, keyMap, padMap]);
+  }, [screen, targetMove, trainingMode, successTarget, playerSide, keyMap, padMap, customMoves, reactionScenario]);
 
   const startTraining = (moveId) => {
     initAudio();
-    setTargetMove(moveId || targetMove);
+    const nextMoveId = moveId || targetMove;
+    const nextMoveDef = allMoves[nextMoveId] || MOVE_LIST['236P'];
+    setTargetMove(nextMoveId);
     setProgressCount(0); setHitCounter(0); setStats({ successes: 0, failures: 0 }); setSessionData([]); setDiagnostics([]);
     setSuccessBanner(null); diagnosticRef.current = [];
     stateRef.current = {
-       totalFrames: 0, stepGlows: {}, shakeFrames: 0, shakeType: null,
+       totalFrames: 0, stepGlows: {}, chargeGlowFrame: -999, spinGlowFrame: -999,
+       wasChargeReady: false, was360Ready: false,
+       reaction: trainingMode === 'reaction' ? makeReactionRound(resolveReactionScenario(nextMoveDef, nextMoveId)) : null,
+       lastReactionFrames: null,
+       inputLockUntilNeutral: false,
+       lastFailureFrame: -1,
+       shakeFrames: 0, shakeType: null,
        keys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
        effectiveKeys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
        history: [{ id: Date.now(), dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, frames: 0, matchType: null }],
        nextId: 1,
-       progress: 0, framesSinceLastProgress: 0, sloppyInputs: 0, sequenceFrames: 0, sequenceSloppy: 0,
+       progress: 0, framesSinceLastProgress: 0, waitStepFrames: 0, sloppyInputs: 0, sequenceFrames: 0, sequenceSloppy: 0,
        successesThisSession: 0, failuresThisSession: 0, attemptsThisSession: 0, currentStreak: 0,
        volume: volume, enableShake: enableShake
     };
@@ -840,6 +1273,120 @@ function App() {
     localStorage.removeItem('ftg_trainer_stats');
     setRecords({});
     setShowOptions(false);
+  };
+
+  const openNewCustomEditor = () => {
+    setEditingCustomId(null);
+    setCustomDraft(createBlankEditor());
+    setSelectedStepId(null);
+    setEditorError('');
+    setScreen('customEditor');
+  };
+
+  const openExistingCustomEditor = (id) => {
+    setEditingCustomId(id);
+    setCustomDraft(hydrateEditor(customMoves[id]));
+    setSelectedStepId(null);
+    setEditorError('');
+    setScreen('customEditor');
+  };
+
+  const applyPresetToDraft = (presetId, insertIndex = null) => {
+    const preset = COMMAND_PRESETS.find(p => p.id === presetId);
+    if (!preset) return;
+    const newSteps = cloneEditorSteps(preset.steps);
+    setCustomDraft(prev => {
+      const steps = [...prev.steps];
+      const index = insertIndex === null ? steps.length : Math.max(0, Math.min(insertIndex, steps.length));
+      steps.splice(index, 0, ...newSteps);
+      return {
+        ...prev,
+        steps
+      };
+    });
+    if (newSteps[0]) setSelectedStepId(newSteps[0].id);
+  };
+
+  const moveDraftStep = (dragId, targetId) => {
+    if (!dragId || !targetId || dragId === targetId) return;
+    setCustomDraft(prev => {
+      const steps = [...prev.steps];
+      const from = steps.findIndex(step => step.id === dragId);
+      const to = steps.findIndex(step => step.id === targetId);
+      if (from < 0 || to < 0) return prev;
+      const [step] = steps.splice(from, 1);
+      steps.splice(to, 0, step);
+      return { ...prev, steps };
+    });
+  };
+
+  const updateDraftStep = (id, patch) => {
+    setCustomDraft(prev => ({
+      ...prev,
+      steps: prev.steps.map(step => step.id === id ? { ...step, ...patch } : step)
+    }));
+  };
+
+  const deleteDraftStep = (id) => {
+    setCustomDraft(prev => ({ ...prev, steps: prev.steps.filter(step => step.id !== id) }));
+    if (selectedStepId === id) setSelectedStepId(null);
+  };
+
+  const duplicateDraftStep = (id) => {
+    setCustomDraft(prev => {
+      const idx = prev.steps.findIndex(step => step.id === id);
+      if (idx < 0) return prev;
+      const copy = { ...prev.steps[idx], id: `step_${Date.now()}_${Math.random().toString(36).slice(2)}` };
+      const steps = [...prev.steps];
+      steps.splice(idx + 1, 0, copy);
+      return { ...prev, steps };
+    });
+  };
+
+  const saveCustomDraft = () => {
+    const move = compileCustomMove(customDraft, editingCustomId);
+    if (!customDraft.name.trim()) {
+      setEditorError('Name required.');
+      return null;
+    }
+    if (move.sequence.length === 0) {
+      setEditorError('Add at least one command.');
+      return null;
+    }
+    const id = editingCustomId || `custom_${Date.now()}`;
+    const finalMove = { ...move, id };
+    setCustomMoves(prev => ({ ...prev, [id]: finalMove }));
+    setEditingCustomId(id);
+    setTargetMove(id);
+    setActiveTab('CUSTOM');
+    setEditorError('');
+    return { id, move: finalMove };
+  };
+
+  const saveCustomAndReturn = () => {
+    const saved = saveCustomDraft();
+    if (saved) setScreen('menu');
+  };
+
+  const saveCustomAndTrain = () => {
+    const saved = saveCustomDraft();
+    if (saved) startTraining(saved.id);
+  };
+
+  const deleteCustomMove = () => {
+    if (!editingCustomId) {
+      setScreen('menu');
+      return;
+    }
+    setCustomMoves(prev => {
+      const next = { ...prev };
+      delete next[editingCustomId];
+      return next;
+    });
+    if (targetMove === editingCustomId) setTargetMove('236P');
+    setEditingCustomId(null);
+    setActiveTab('CUSTOM');
+    setScreen('menu');
   };
 
   const renderKeyBind = (label, keyId) => (
@@ -966,9 +1513,188 @@ function App() {
      );
   };
 
+  const renderStepEditor = (step) => {
+    if (!step) return <div className="text-zinc-600 font-mono text-xs border border-dashed border-zinc-800 rounded p-4">SELECT STEP</div>;
+    return (
+      <div className="space-y-4">
+        <div className="text-xs font-black text-zinc-500 tracking-widest uppercase">Step Settings</div>
+        <label className="block">
+          <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Type</span>
+          <select value={step.type} onChange={(e) => updateDraftStep(step.id, { type: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white">
+            <option value="direction">Direction</option>
+            <option value="button">Button</option>
+            <option value="anyButton">Any P/K</option>
+            <option value="simul">Direction + Button</option>
+            <option value="charge">Charge</option>
+            <option value="spin">360 / 720</option>
+            <option value="wait">Wait</option>
+          </select>
+        </label>
+        {(step.type === 'direction' || step.type === 'simul') && (
+          <label className="block">
+            <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Direction</span>
+            <select value={step.dir || 6} onChange={(e) => updateDraftStep(step.id, { dir: parseInt(e.target.value) })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white">
+              {[1,2,3,4,5,6,7,8,9].map(dir => <option key={dir} value={dir}>{ERROR_MAP[dir] || dir}</option>)}
+            </select>
+          </label>
+        )}
+        {(step.type === 'button' || step.type === 'simul') && (
+          <label className="block">
+            <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Button</span>
+            <select value={step.button || 'HP'} onChange={(e) => updateDraftStep(step.id, { button: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white">
+              {['LP','MP','HP','LK','MK','HK','P','K'].map(btn => <option key={btn} value={btn}>{ERROR_MAP[btn] || btn}</option>)}
+            </select>
+          </label>
+        )}
+        {step.type === 'anyButton' && (
+          <label className="block">
+            <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Any Button</span>
+            <select value={step.value || 'P'} onChange={(e) => updateDraftStep(step.id, { value: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white">
+              <option value="P">Any Punch</option>
+              <option value="K">Any Kick</option>
+            </select>
+          </label>
+        )}
+        {step.type === 'charge' && (
+          <>
+            <label className="block">
+              <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Charge Direction</span>
+              <select value={step.chargeDir || 'back'} onChange={(e) => updateDraftStep(step.id, { chargeDir: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white">
+                <option value="back">Back</option>
+                <option value="down">Down</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Frames</span>
+              <input type="number" min="1" max="180" value={step.chargeFrames || 45} onChange={(e) => updateDraftStep(step.id, { chargeFrames: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white" />
+            </label>
+          </>
+        )}
+        {step.type === 'spin' && (
+          <>
+            <label className="block">
+              <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Motion</span>
+              <select value={step.spin || '360'} onChange={(e) => updateDraftStep(step.id, { spin: e.target.value, spinFrames: e.target.value === '720' ? 55 : 35 })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white">
+                <option value="360">360</option>
+                <option value="720">720</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Window Frames</span>
+              <input type="number" min="1" max="180" value={step.spinFrames || (step.spin === '720' ? 55 : 35)} onChange={(e) => updateDraftStep(step.id, { spinFrames: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white" />
+            </label>
+          </>
+        )}
+        {step.type === 'wait' && (
+          <label className="block">
+            <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Wait Frames</span>
+            <input type="number" min="1" max="300" value={step.waitFrames || 30} onChange={(e) => updateDraftStep(step.id, { waitFrames: e.target.value })} className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm font-bold text-white" />
+          </label>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => duplicateDraftStep(step.id)} className="py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-xs font-black text-zinc-200 uppercase">Duplicate</button>
+          <button onClick={() => deleteDraftStep(step.id)} className="py-2 bg-red-950/50 hover:bg-red-900/50 border border-red-900 rounded text-xs font-black text-red-400 uppercase">Delete</button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCustomEditor = () => {
+    const selectedStep = customDraft.steps.find(step => step.id === selectedStepId);
+    const previewMove = compileCustomMove(customDraft);
+    const presetGroups = COMMAND_PRESETS.reduce((acc, preset) => {
+      acc[preset.group] = acc[preset.group] || [];
+      acc[preset.group].push(preset);
+      return acc;
+    }, {});
+
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white p-8 select-none">
+        <div className="max-w-7xl mx-auto flex flex-col gap-6 h-[calc(100vh-4rem)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <button onClick={() => setScreen('menu')} className="text-zinc-500 hover:text-cyan-400 font-mono text-sm tracking-widest uppercase mb-3">BACK TO MENU</button>
+              <h1 className="text-5xl font-black italic tracking-tighter text-yellow-500 uppercase">CUSTOM EDITOR</h1>
+            </div>
+            <div className="flex gap-3">
+              {editingCustomId && <button onClick={deleteCustomMove} className="px-5 py-3 border border-red-900 text-red-400 hover:bg-red-950/50 rounded font-black italic uppercase">DELETE</button>}
+              <button onClick={saveCustomAndReturn} className="px-5 py-3 bg-zinc-800 hover:bg-zinc-700 rounded font-black italic uppercase">SAVE</button>
+              <button onClick={saveCustomAndTrain} className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-black italic uppercase">TRAIN</button>
+            </div>
+          </div>
+          <div className="grid grid-cols-[280px_1fr_300px] gap-6 min-h-0 flex-1">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col">
+              <div className="p-4 bg-zinc-950 border-b border-zinc-800 text-xs font-black text-zinc-500 tracking-widest uppercase">Preset Palette</div>
+              <div className="p-4 overflow-y-auto no-scrollbar space-y-5">
+                {Object.entries(presetGroups).map(([group, presets]) => (
+                  <div key={group}>
+                    <div className="text-[10px] text-zinc-600 font-black tracking-widest mb-2 uppercase">{group}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {presets.map(preset => (
+                        <button key={preset.id} draggable onDragStart={(e) => e.dataTransfer.setData('preset', preset.id)} onClick={() => applyPresetToDraft(preset.id)}
+                          className={`min-h-12 px-2 py-2 bg-zinc-950 border hover:border-yellow-500 rounded text-xs font-black uppercase flex items-center justify-center text-center ${getButtonColor(preset.label)?.border || 'border-zinc-800'} ${getButtonColor(preset.label) ? 'text-white' : 'text-zinc-200'}`}
+                          style={getButtonColor(preset.label) ? { color: getButtonColor(preset.label).text } : {}}>
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col">
+              <div className="p-4 bg-zinc-950 border-b border-zinc-800 flex gap-4 items-center">
+                <label className="flex-1">
+                  <span className="block text-[10px] font-black text-zinc-500 tracking-widest mb-2 uppercase">Combo Name</span>
+                  <input value={customDraft.name} onChange={(e) => setCustomDraft(prev => ({ ...prev, name: e.target.value }))} className="w-full bg-zinc-900 border border-zinc-700 rounded px-4 py-3 text-lg font-black italic text-white outline-none focus:border-yellow-500" />
+                </label>
+              </div>
+              <div className="flex-1 p-6 overflow-y-auto no-scrollbar">
+                <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const presetId = e.dataTransfer.getData('preset'); if (presetId) applyPresetToDraft(presetId); }}
+                  className="min-h-48 border-2 border-dashed border-zinc-800 rounded-lg p-4 flex flex-wrap content-start gap-3">
+                  {customDraft.steps.length === 0 && <div className="w-full h-36 flex items-center justify-center text-zinc-600 font-black italic tracking-widest uppercase">Drag presets here</div>}
+                  {customDraft.steps.map((step, idx) => {
+                    const command = stepToCommand(step);
+                    const selected = selectedStepId === step.id;
+                    return (
+                      <button key={step.id} draggable
+                        onDragStart={(e) => { setDraggingStepId(step.id); e.dataTransfer.setData('step', step.id); }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); const presetId = e.dataTransfer.getData('preset'); const stepId = e.dataTransfer.getData('step') || draggingStepId; if (presetId) applyPresetToDraft(presetId, idx); else moveDraftStep(stepId, step.id); setDraggingStepId(null); }}
+                        onClick={() => setSelectedStepId(step.id)}
+                        className={`h-16 min-w-16 px-4 flex items-center justify-center gap-2 border-2 rounded transition-all ${selected ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'border-zinc-700 bg-zinc-950 hover:border-zinc-500'}`}>
+                        <span className="text-[10px] text-zinc-600 font-mono">{idx + 1}</span>
+                        <DirIcon dir={command} flip={playerSide === 'P2'} className="w-8 h-8 text-zinc-200" />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-5 bg-zinc-950 border border-zinc-800 rounded p-4">
+                  <div className="text-[10px] font-black text-zinc-600 tracking-widest mb-3 uppercase">Preview</div>
+                  <div className="flex flex-wrap gap-3 items-center">
+                    {previewMove.charge && <div className="h-12 w-12 flex items-center justify-center border-2 border-yellow-500 rounded"><DirIcon dir={previewMove.charge.icon} flip={playerSide === 'P2'} className="w-7 h-7 text-yellow-500" /></div>}
+                    {previewMove.require360 && <div className="h-12 w-12 flex items-center justify-center border-2 border-yellow-500 rounded"><DirIcon dir={previewMove.require360.label} flip={playerSide === 'P2'} className="w-7 h-7 text-yellow-500" /></div>}
+                    {previewMove.sequence.map((step, idx) => <div key={idx} className="h-12 min-w-12 px-3 flex items-center justify-center border-2 border-zinc-700 rounded"><DirIcon dir={step} flip={playerSide === 'P2'} className="w-7 h-7 text-zinc-300" /></div>)}
+                  </div>
+                  {editorError && <div className="mt-4 text-red-400 font-mono text-xs uppercase">{editorError}</div>}
+                </div>
+              </div>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col">
+              <div className="p-4 bg-zinc-950 border-b border-zinc-800 text-xs font-black text-zinc-500 tracking-widest uppercase">Modify</div>
+              <div className="p-5 overflow-y-auto no-scrollbar">{renderStepEditor(selectedStep)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ======================
   // 1. MENU SCREEN
   // ======================
+  if (screen === 'customEditor') return renderCustomEditor();
+
   if (screen === 'menu') {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none relative">
@@ -987,7 +1713,11 @@ function App() {
           <div className="w-64 bg-zinc-950 flex flex-col border-r border-zinc-800">
             <div className="p-4 bg-zinc-900 border-b border-zinc-800 text-xs font-black text-zinc-500 tracking-widest uppercase">Categories</div>
             {TABS.map(tab => (
-               <button key={tab} onClick={() => { setActiveTab(tab); setTargetMove(Object.keys(MOVE_LIST).find(k => MOVE_LIST[k].tab === tab)); }}
+               <button key={tab} onClick={() => {
+                  setActiveTab(tab);
+                  const firstMove = Object.keys(allMoves).find(k => allMoves[k].tab === tab);
+                  if (firstMove) setTargetMove(firstMove);
+               }}
                  className={`w-full text-left px-6 py-5 font-black italic text-lg tracking-wider transition-colors border-l-4 ${activeTab === tab ? 'border-yellow-500 bg-zinc-800 text-yellow-500 shadow-[inset_0_0_20px_rgba(234,179,8,0.1)]' : 'border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
                  {tab}
                </button>
@@ -999,7 +1729,7 @@ function App() {
                <span className="text-xs font-black text-zinc-500 tracking-widest uppercase">Command List</span>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-3 no-scrollbar">
-               {Object.entries(MOVE_LIST).filter(([id, m]) => m.tab === activeTab).map(([id, move]) => {
+               {Object.entries(allMoves).filter(([id, m]) => m.tab === activeTab).map(([id, move]) => {
                   const rec = records[id];
                   return (
                   <button key={id} onClick={() => setTargetMove(id)}
@@ -1024,6 +1754,15 @@ function App() {
                      </div>
                   </button>
                )})}
+               {activeTab === 'CUSTOM' && (
+                  <button onClick={openNewCustomEditor}
+                    className="w-full min-h-28 flex items-center justify-center p-4 bg-zinc-950/30 border-2 border-dashed border-zinc-700 rounded transition-all hover:border-yellow-500 hover:bg-yellow-500/5">
+                    <div className="text-center">
+                      <div className="text-4xl leading-none text-yellow-500 font-black">+</div>
+                      <div className="text-xs font-black italic tracking-widest text-zinc-400 uppercase mt-2">New Custom Combo</div>
+                    </div>
+                  </button>
+               )}
             </div>
           </div>
 
@@ -1044,24 +1783,51 @@ function App() {
                   <div className="flex flex-col gap-2">
                      <button onClick={()=>setTrainingMode('streak')} className={`py-3 px-4 font-black italic text-sm text-left border rounded transition-all ${trainingMode === 'streak' ? 'border-pink-500 bg-pink-500/10 text-pink-500' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>STREAK MODE</button>
                      <button onClick={()=>setTrainingMode('precision')} className={`py-3 px-4 font-black italic text-sm text-left border rounded transition-all ${trainingMode === 'precision' ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>PRECISION TEST</button>
+                     <button onClick={()=>setTrainingMode('reaction')} className={`py-3 px-4 font-black italic text-sm text-left border rounded transition-all ${trainingMode === 'reaction' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>REACTION TEST</button>
                   </div>
                </div>
+
+               {trainingMode === 'reaction' && (
+                  <div>
+                     <label className="text-xs font-black text-zinc-500 tracking-widest mb-3 block uppercase">Reaction Scenario</label>
+                     <div className="grid grid-cols-3 gap-2">
+                        {[
+                           ['auto', 'AUTO'],
+                           ['dash', 'DASH'],
+                           ['jump', 'JUMP']
+                        ].map(([id, label]) => (
+                           <button key={id} onClick={() => setReactionScenario(id)}
+                             className={`py-2 rounded border font-black italic text-xs ${reactionScenario === id ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
+                             {label}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+               )}
                
                <div>
                   <label className="flex justify-between text-xs font-black text-zinc-500 tracking-widest mb-4 uppercase">
-                     <span>{trainingMode === 'streak' ? 'TARGET SUCCESSES' : 'TOTAL ATTEMPTS'}</span>
-                     <span className={trainingMode === 'streak' ? 'text-pink-500 text-lg leading-none' : 'text-cyan-400 text-lg leading-none'}>{successTarget}</span>
+                     <span>{trainingMode === 'precision' ? 'TOTAL ATTEMPTS' : 'TARGET SUCCESSES'}</span>
+                     <span className={trainingMode === 'streak' ? 'text-pink-500 text-lg leading-none' : trainingMode === 'reaction' ? 'text-emerald-400 text-lg leading-none' : 'text-cyan-400 text-lg leading-none'}>{successTarget}</span>
                   </label>
-                  <input type="range" min="1" max="100" value={successTarget} onChange={(e) => setSuccessTarget(parseInt(e.target.value))} className={`w-full ${trainingMode === 'streak' ? 'accent-pink-500' : 'accent-cyan-400'}`} />
+                  <input type="range" min="1" max="100" value={successTarget} onChange={(e) => setSuccessTarget(parseInt(e.target.value))} className={`w-full ${trainingMode === 'streak' ? 'accent-pink-500' : trainingMode === 'reaction' ? 'accent-emerald-500' : 'accent-cyan-400'}`} />
                   <p className="text-[10px] text-zinc-600 font-mono mt-3 leading-tight">
-                     {trainingMode === 'streak' ? 'Execute perfectly in a row. A single drop resets the streak.' : 'Execute the target amount of times. Tracks your total failure rate and average precision.'}
+                     {trainingMode === 'streak' ? 'Execute perfectly in a row. A single drop resets the streak.' : trainingMode === 'reaction' ? 'Wait for the opponent cue, then complete the selected command inside the timing window.' : 'Execute the target amount of times. Tracks your total failure rate and average precision.'}
                   </p>
                </div>
 
+               {curTargetMove.custom && (
+                  <button onClick={() => openExistingCustomEditor(targetMove)}
+                    className="w-full py-3 border border-yellow-500/70 text-yellow-500 hover:bg-yellow-500/10 font-black italic tracking-widest rounded uppercase">
+                    EDIT CUSTOM
+                  </button>
+               )}
+
             </div>
             
-            <button onClick={() => startTraining(targetMove)} className="py-6 bg-yellow-500 hover:bg-yellow-400 text-black font-black italic text-3xl tracking-tighter transition-colors uppercase">
-               START
+            <button onClick={() => (activeTab === 'CUSTOM' && !curTargetMove.custom ? openNewCustomEditor() : startTraining(targetMove))}
+              className="py-6 bg-yellow-500 hover:bg-yellow-400 text-black font-black italic text-3xl tracking-tighter transition-colors uppercase">
+               {activeTab === 'CUSTOM' && !curTargetMove.custom ? 'CREATE' : 'START'}
             </button>
           </div>
         </div>
@@ -1085,7 +1851,7 @@ function App() {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-8 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none">
          <h1 className="text-6xl font-black italic text-cyan-400 tracking-tighter mb-2 drop-shadow-[0_0_20px_rgba(34,211,238,0.4)] uppercase">DRILL COMPLETE</h1>
-         <p className="text-zinc-400 font-mono tracking-widest mb-10 uppercase">{MOVE_LIST[targetMove].name} - {successTarget} {trainingMode === 'streak' ? 'SUCCESSES' : 'ATTEMPTS'}</p>
+         <p className="text-zinc-400 font-mono tracking-widest mb-10 uppercase">{curTargetMove.name} - {successTarget} {trainingMode === 'precision' ? 'ATTEMPTS' : 'SUCCESSES'}</p>
          
          <div className="flex gap-6 mb-10">
             <div className="bg-zinc-900 border-2 border-zinc-800 p-6 rounded-lg text-center shadow-lg w-48 flex flex-col justify-center">
@@ -1101,6 +1867,12 @@ function App() {
                <div className="text-zinc-500 font-bold text-xs tracking-widest uppercase mb-2">Avg. Precision</div>
                <div className={`text-4xl font-black italic ${avgPrec >= 90 ? 'text-cyan-400' : 'text-yellow-500'}`}>{avgPrec}%</div>
             </div>
+            {trainingMode === 'reaction' && (
+              <div className="bg-zinc-900 border-2 border-zinc-800 p-6 rounded-lg text-center shadow-lg w-48 flex flex-col justify-center">
+                 <div className="text-zinc-500 font-bold text-xs tracking-widest uppercase mb-2">Avg. Reaction</div>
+                 <div className="text-4xl font-black italic text-emerald-400">{successData.length ? Math.round(successData.reduce((a, b) => a + (b.reactionFrames || 0), 0) / successData.length) : 0}f</div>
+              </div>
+            )}
          </div>
 
          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-10 shadow-xl">
@@ -1136,18 +1908,42 @@ function App() {
   const h = stateRef.current.history;
   const effKeys = stateRef.current.effectiveKeys;
   const activeProgress = stateRef.current.progress;
+  const reaction = stateRef.current.reaction;
+  const reactionDef = reaction ? REACTION_SCENARIOS[reaction.scenario] : null;
+  const reactionIsActive = trainingMode === 'reaction';
+  const playerStageX = playerSide === 'P1' ? 28 : 72;
+  const opponentStageX = reaction ? (playerSide === 'P1' ? reaction.x : 100 - reaction.x) : (playerSide === 'P1' ? 72 : 28);
+  const opponentStageY = reaction ? reaction.y : 0;
+  const opponentFacing = playerSide === 'P1' ? -1 : 1;
+  const playerFacing = playerSide === 'P1' ? 1 : -1;
   const isSuccessLinger = !!successBanner;
   const latestDiagnostic = diagnostics.length > 0 ? diagnostics[diagnostics.length - 1] : null;
   
-  const curMoveDef = MOVE_LIST[targetMove];
+  const curMoveDef = curTargetMove;
   const chargeFramesCount = curMoveDef.charge ? getChargeFrames(h, curMoveDef.charge.dirs) : 0;
   
-  const isChargeReady = curMoveDef.charge ? (activeProgress > 0 || isSuccessLinger || chargeFramesCount >= curMoveDef.charge.frames) : false;
-  const chargePercent = curMoveDef.charge ? ((activeProgress > 0 || isSuccessLinger) ? 100 : Math.min(100, (chargeFramesCount / curMoveDef.charge.frames) * 100)) : 0;
+  const isChargeReady = curMoveDef.charge ? (activeProgress > 0 || chargeFramesCount >= curMoveDef.charge.frames) : false;
+  const chargePercent = curMoveDef.charge ? (activeProgress > 0 ? 100 : Math.min(100, (chargeFramesCount / curMoveDef.charge.frames) * 100)) : 0;
   
   const status360 = curMoveDef.require360 ? get360Status(h, curMoveDef.require360.frames, curMoveDef.require360.count) : { isReady: false, percent: 0 };
-  const is360Ready = curMoveDef.require360 ? (activeProgress > 0 || isSuccessLinger || status360.isReady) : false;
-  const spinPercent = curMoveDef.require360 ? ((activeProgress > 0 || isSuccessLinger) ? 100 : status360.percent) : 0;
+  const is360Ready = curMoveDef.require360 ? (activeProgress > 0 || status360.isReady) : false;
+  const spinPercent = curMoveDef.require360 ? (activeProgress > 0 ? 100 : status360.percent) : 0;
+  const chargeGlowFramesPassed = stateRef.current.totalFrames - stateRef.current.chargeGlowFrame;
+  const spinGlowFramesPassed = stateRef.current.totalFrames - stateRef.current.spinGlowFrame;
+  const chargeGlowActive = chargeGlowFramesPassed < INPUT_GLOW_FRAMES;
+  const spinGlowActive = spinGlowFramesPassed < INPUT_GLOW_FRAMES;
+  const chargeFillPercent = isChargeReady ? 0 : chargePercent;
+  const spinFillPercent = is360Ready ? 0 : spinPercent;
+  const getSpecialInputGlowStyle = (framesPassed) => {
+    const ratio = 1 - (framesPassed / INPUT_GLOW_FRAMES);
+    const easeOut = 1 - Math.pow(1 - ratio, 3);
+
+    return {
+      transform: `scale(${1 + (easeOut * 0.10)})`,
+      borderColor: `rgba(250,204,21,${easeOut * 0.8})`,
+      boxShadow: `0 0 ${20 * easeOut}px rgba(250,204,21,${easeOut * 0.4})`
+    };
+  };
 
   // Determine shake class
   let shakeClass = "";
@@ -1217,15 +2013,15 @@ function App() {
       {/* HEADER */}
       <div className="absolute top-0 left-0 w-full pl-80 p-6 flex justify-between items-start z-30 pointer-events-none">
          <div className="pointer-events-auto ml-6 flex flex-col gap-2">
-            <button onClick={() => setScreen('menu')} className="text-zinc-500 hover:text-cyan-400 font-mono text-sm tracking-widest flex items-center gap-2 transition-colors w-max uppercase">
-               <span>◄</span> BACK TO MENU
+            <button onClick={() => setScreen('menu')} className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black italic text-lg tracking-tighter transition-colors uppercase shadow-[0_0_18px_rgba(234,179,8,0.25)] w-max">
+               BACK TO MENU
             </button>
             <h1 className="text-3xl font-black italic text-white tracking-tighter drop-shadow-lg uppercase">
-              {MOVE_LIST[targetMove].name}
+              {curTargetMove.name}
             </h1>
             <div className="flex gap-2">
                <span className="text-[10px] font-bold tracking-widest px-2 py-1 bg-zinc-800 text-zinc-400 rounded uppercase">
-                  {trainingMode === 'streak' ? 'STREAK MODE' : 'PRECISION TEST'}
+                  {trainingMode === 'streak' ? 'STREAK MODE' : trainingMode === 'reaction' ? 'REACTION TEST' : 'PRECISION TEST'}
                </span>
                <span className={`text-[10px] font-bold tracking-widest px-2 py-1 rounded uppercase ${playerSide === 'P1' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-pink-500/20 text-pink-400'}`}>
                   SIDE: {playerSide}
@@ -1265,10 +2061,10 @@ function App() {
             <div className="bg-gradient-to-r from-transparent via-cyan-500 to-transparent px-16 py-3 skew-x-[-15deg] shadow-[0_0_30px_rgba(34,211,238,0.4)] border-y-4 border-cyan-300 flex flex-col items-center justify-center">
                <div className="skew-x-[15deg] flex flex-col items-center">
                   <h2 className="text-3xl font-black italic text-white tracking-widest uppercase drop-shadow-lg" style={{WebkitTextStroke: '1px rgba(0,0,0,0.5)'}}>
-                     COMBO SUCCESS
+                     {trainingMode === 'reaction' ? 'REACTION SUCCESS' : 'COMBO SUCCESS'}
                   </h2>
                   <p className="text-cyan-100 font-bold tracking-widest font-mono text-sm mt-1 drop-shadow-md">
-                     TIME: {successBanner.frames}f | PRECISION: {successBanner.precision}%
+                     {trainingMode === 'reaction' ? `REACTION: ${successBanner.reactionFrames}f | PRECISION: ${successBanner.precision}%` : `TIME: ${successBanner.frames}f | PRECISION: ${successBanner.precision}%`}
                   </p>
                </div>
             </div>
@@ -1306,6 +2102,12 @@ function App() {
         
         <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col-reverse p-4 space-y-2 space-y-reverse">
           {[...h].reverse().map((entry) => (
+            entry.marker ? (
+              <div key={entry.id} className={`flex items-center gap-3 p-2 rounded border-l-4 ${entry.matchType === 'strict' ? 'bg-emerald-500/15 border-emerald-400 text-emerald-300' : 'bg-zinc-800/60 border-zinc-500 text-zinc-400'}`}>
+                <div className="w-10 text-right font-mono text-[10px] text-zinc-500">--</div>
+                <div className="text-[10px] font-black tracking-widest uppercase">{entry.label}</div>
+              </div>
+            ) : (
             <div key={entry.id} className={`group flex flex-col p-2 rounded transform transition-all
                 ${entry.matchType === 'error' ? 'bg-red-500/10 border-l-4 border-red-500' : ''}
                 ${entry.matchType === 'strict' ? 'bg-cyan-500/20 border-l-4 border-cyan-500' : ''}
@@ -1318,12 +2120,12 @@ function App() {
                    <DirIcon dir={entry.dir} flip={playerSide === 'P2'} className="w-full h-full" />
                  </div>
                  <div className="flex-1 flex flex-wrap gap-1">
-                   {entry.lp && <span className="px-1.5 py-0.5 text-[9px] font-black bg-pink-400 text-white rounded-sm">LP</span>}
-                   {entry.mp && <span className="px-1.5 py-0.5 text-[9px] font-black bg-pink-500 text-white rounded-sm">MP</span>}
-                   {entry.hp && <span className="px-1.5 py-0.5 text-[9px] font-black bg-pink-600 text-white rounded-sm">HP</span>}
-                   {entry.lk && <span className="px-1.5 py-0.5 text-[9px] font-black bg-cyan-400 text-white rounded-sm">LK</span>}
-                   {entry.mk && <span className="px-1.5 py-0.5 text-[9px] font-black bg-cyan-500 text-white rounded-sm">MK</span>}
-                   {entry.hk && <span className="px-1.5 py-0.5 text-[9px] font-black bg-cyan-600 text-white rounded-sm">HK</span>}
+                   {entry.lp && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.LP.bg} text-white rounded-sm`}>LP</span>}
+                   {entry.mp && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.MP.bg} text-white rounded-sm`}>MP</span>}
+                   {entry.hp && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.HP.bg} text-white rounded-sm`}>HP</span>}
+                   {entry.lk && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.LK.bg} text-white rounded-sm`}>LK</span>}
+                   {entry.mk && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.MK.bg} text-white rounded-sm`}>MK</span>}
+                   {entry.hk && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.HK.bg} text-white rounded-sm`}>HK</span>}
                  </div>
               </div>
 
@@ -1334,6 +2136,7 @@ function App() {
                  </div>
               )}
             </div>
+            )
           ))}
         </div>
       </div>
@@ -1341,25 +2144,29 @@ function App() {
       {/* CENTER STAGE */}
       <div className="flex-1 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 pl-80 pr-0">
 
-        <div className="mb-12 flex flex-col items-center mt-24">
+        <div className={`${reactionIsActive ? 'mb-5 mt-16' : 'mb-12 mt-24'} flex flex-col items-center`}>
            <div className="text-zinc-500 font-mono text-xs tracking-widest mb-4 uppercase">DESIRED INPUT</div>
            <div className="flex gap-4 items-center">
              
              {curMoveDef.charge && (
                 <div className={`relative h-14 w-14 flex items-center justify-center border-2 rounded transform transition-all duration-100 overflow-hidden
-                    ${isChargeReady ? 'border-yellow-400 scale-110 shadow-[0_0_20px_rgba(250,204,21,0.4)]' : 'border-zinc-800 bg-zinc-900/50'}`}>
+                    ${chargeGlowActive ? 'border-yellow-400' : 'border-zinc-800 bg-zinc-900/50'}
+                    ${chargeGlowActive ? 'transition-none' : ''}`}
+                    style={chargeGlowActive ? getSpecialInputGlowStyle(chargeGlowFramesPassed) : {}}>
                     
-                    <div className="absolute bottom-0 left-0 w-full bg-yellow-400/30" style={{ height: `${chargePercent}%` }}></div>
-                    <DirIcon dir={curMoveDef.charge.icon} flip={playerSide === 'P2'} className={`relative z-10 w-8 h-8 ${isChargeReady ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-zinc-300'}`} />
+                    <div className="absolute bottom-0 left-0 w-full bg-yellow-400/30" style={{ height: `${chargeFillPercent}%` }}></div>
+                    <DirIcon dir={curMoveDef.charge.icon} flip={playerSide === 'P2'} className={`relative z-10 w-8 h-8 ${chargeGlowActive ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-zinc-300'}`} />
                 </div>
              )}
              
              {curMoveDef.require360 && (
                 <div className={`relative h-14 w-14 flex items-center justify-center border-2 rounded transform transition-all duration-100 overflow-hidden
-                    ${is360Ready ? 'border-yellow-400 scale-110 shadow-[0_0_20px_rgba(250,204,21,0.4)]' : 'border-zinc-800 bg-zinc-900/50'}`}>
+                    ${spinGlowActive ? 'border-yellow-400' : 'border-zinc-800 bg-zinc-900/50'}
+                    ${spinGlowActive ? 'transition-none' : ''}`}
+                    style={spinGlowActive ? getSpecialInputGlowStyle(spinGlowFramesPassed) : {}}>
                     
-                    <div className="absolute inset-0 opacity-40" style={{ background: `conic-gradient(#facc15 ${spinPercent}%, transparent 0)` }}></div>
-                    <DirIcon dir={curMoveDef.require360.label} flip={playerSide === 'P2'} className={`relative z-10 w-8 h-8 ${is360Ready ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-zinc-300'}`} />
+                    <div className="absolute inset-0 opacity-40" style={{ background: `conic-gradient(#facc15 ${spinFillPercent}%, transparent 0)` }}></div>
+                    <DirIcon dir={curMoveDef.require360.label} flip={playerSide === 'P2'} className={`relative z-10 w-8 h-8 ${spinGlowActive ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-zinc-300'}`} />
                 </div>
              )}
 
@@ -1377,9 +2184,9 @@ function App() {
 
                 if (isError) {
                    containerClass += "border-red-500 text-red-500 bg-red-500/20 scale-110 shadow-[0_0_20px_rgba(239,68,68,0.6)] transition-all duration-100";
-                } else if (framesPassed < 45) { 
+                } else if (framesPassed < INPUT_GLOW_FRAMES) {
                    // Independent 45-frame (0.75s) smooth decay glow
-                   const ratio = 1 - (framesPassed / 45);
+                   const ratio = 1 - (framesPassed / INPUT_GLOW_FRAMES);
                    const easeOut = 1 - Math.pow(1 - ratio, 3);
                    
                    const scale = 1 + (easeOut * (isLast ? 0.25 : 0.10));
@@ -1410,10 +2217,45 @@ function App() {
            </div>
         </div>
 
+        {reactionIsActive && (
+          <div className="relative w-[44rem] h-64 mb-6 border-b-4 border-zinc-700/80 overflow-hidden">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 pointer-events-none">
+              <span className="px-3 py-1 rounded bg-zinc-950/80 border border-zinc-700 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
+                {reactionDef?.label || 'Reaction'}
+              </span>
+              <span className={`px-3 py-1 rounded border text-[10px] font-black tracking-widest uppercase ${reaction?.valid ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.35)]' : 'bg-zinc-950/80 border-zinc-700 text-zinc-500'}`}>
+                {reaction?.phase === 'delay' ? 'WAIT' : reaction?.phase === 'tell' ? 'GET READY' : reaction?.valid ? 'NOW' : 'READ'}
+              </span>
+              {reaction?.lastResult && (
+                <span className="px-3 py-1 rounded bg-zinc-950/80 border border-zinc-700 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
+                  {reaction.lastResult}
+                </span>
+              )}
+            </div>
+
+            <div className="absolute left-0 right-0 bottom-0 h-20 bg-gradient-to-t from-zinc-900/90 to-transparent"></div>
+            <div className="absolute bottom-0 h-32 w-20"
+              style={{ left: `${playerStageX}%`, transform: `translateX(-50%) scaleX(${playerFacing})` }}>
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-24 rounded-t-full bg-gradient-to-b from-cyan-300 to-cyan-800 border-2 border-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.25)]"></div>
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-cyan-200 border-2 border-cyan-50"></div>
+              <div className="absolute bottom-8 left-7 w-4 h-16 rounded-full bg-cyan-500 origin-top rotate-[-18deg]"></div>
+              <div className="absolute bottom-8 right-7 w-4 h-16 rounded-full bg-cyan-600 origin-top rotate-[18deg]"></div>
+            </div>
+
+            <div className="absolute bottom-0 h-32 w-20 transition-[filter] duration-75"
+              style={{ left: `${opponentStageX}%`, transform: `translate(-50%, ${opponentStageY}px) scaleX(${opponentFacing})`, filter: reaction?.valid ? 'drop-shadow(0 0 18px #10b981) brightness(1.35)' : 'none' }}>
+              <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-24 rounded-t-full border-2 ${reaction?.valid ? 'bg-gradient-to-b from-emerald-200 to-emerald-700 border-emerald-200' : reaction?.phase === 'tell' ? 'bg-gradient-to-b from-orange-200 to-pink-800 border-orange-200' : 'bg-gradient-to-b from-pink-300 to-pink-800 border-pink-200'}`}></div>
+              <div className={`absolute bottom-20 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full border-2 ${reaction?.valid ? 'bg-emerald-200 border-emerald-50' : reaction?.phase === 'tell' ? 'bg-orange-200 border-orange-50' : 'bg-pink-200 border-pink-50'}`}></div>
+              <div className={`absolute bottom-8 left-7 w-4 h-16 rounded-full origin-top ${reaction?.scenario === 'dash' && reaction?.phase === 'active' ? 'rotate-[-48deg]' : reaction?.phase === 'tell' ? 'rotate-[-60deg]' : 'rotate-[-18deg]'} ${reaction?.valid ? 'bg-emerald-500' : reaction?.phase === 'tell' ? 'bg-orange-400' : 'bg-pink-500'}`}></div>
+              <div className={`absolute bottom-8 right-7 w-4 h-16 rounded-full origin-top ${reaction?.scenario === 'dash' && reaction?.phase === 'active' ? 'rotate-[48deg]' : reaction?.phase === 'tell' ? 'rotate-[60deg]' : 'rotate-[18deg]'} ${reaction?.valid ? 'bg-emerald-700' : reaction?.phase === 'tell' ? 'bg-orange-600' : 'bg-pink-700'}`}></div>
+            </div>
+          </div>
+        )}
+
         {/* Progress Tracker UI */}
         <div className="text-center w-80">
           <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-2">
-             {trainingMode === 'streak' ? 'Current Streak' : 'Total Attempts'}
+             {trainingMode === 'precision' ? 'Total Attempts' : trainingMode === 'reaction' ? 'Reaction Clears' : 'Current Streak'}
           </div>
           <div className="text-3xl font-black italic text-cyan-400">
              {progressCount} <span className="text-zinc-600 text-xl">/ {successTarget}</span>
@@ -1445,24 +2287,24 @@ function App() {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-             <div className={`w-12 h-12 rounded-full border-4 border-zinc-800 flex items-center justify-center transform transition-transform ${effKeys.lp ? 'bg-pink-400 scale-95 shadow-[0_0_15px_#f472b6]' : 'bg-zinc-800'}`}><span className="font-black text-xs text-white">LP</span></div>
-             <div className={`w-12 h-12 rounded-full border-4 border-zinc-800 flex items-center justify-center transform transition-transform ${effKeys.mp ? 'bg-pink-500 scale-95 shadow-[0_0_15px_#ec4899]' : 'bg-zinc-800'}`}><span className="font-black text-xs text-white">MP</span></div>
-             <div className={`w-12 h-12 rounded-full border-4 border-zinc-800 flex items-center justify-center transform transition-transform ${effKeys.hp ? 'bg-pink-600 scale-95 shadow-[0_0_15px_#db2777]' : 'bg-zinc-800'}`}><span className="font-black text-xs text-white">HP</span></div>
+             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.lp ? `${BUTTON_COLORS.LP.bg} ${BUTTON_COLORS.LP.border} scale-95 ${BUTTON_COLORS.LP.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">LP</span></div>
+             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.mp ? `${BUTTON_COLORS.MP.bg} ${BUTTON_COLORS.MP.border} scale-95 ${BUTTON_COLORS.MP.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">MP</span></div>
+             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.hp ? `${BUTTON_COLORS.HP.bg} ${BUTTON_COLORS.HP.border} scale-95 ${BUTTON_COLORS.HP.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">HP</span></div>
              
-             <div className={`w-12 h-12 rounded-full border-4 border-zinc-800 flex items-center justify-center transform transition-transform ${effKeys.lk ? 'bg-cyan-400 scale-95 shadow-[0_0_15px_#22d3ee]' : 'bg-zinc-800'}`}><span className="font-black text-xs text-white">LK</span></div>
-             <div className={`w-12 h-12 rounded-full border-4 border-zinc-800 flex items-center justify-center transform transition-transform ${effKeys.mk ? 'bg-cyan-500 scale-95 shadow-[0_0_15px_#06b6d4]' : 'bg-zinc-800'}`}><span className="font-black text-xs text-white">MK</span></div>
-             <div className={`w-12 h-12 rounded-full border-4 border-zinc-800 flex items-center justify-center transform transition-transform ${effKeys.hk ? 'bg-cyan-600 scale-95 shadow-[0_0_15px_#0891b2]' : 'bg-zinc-800'}`}><span className="font-black text-xs text-white">HK</span></div>
+             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.lk ? `${BUTTON_COLORS.LK.bg} ${BUTTON_COLORS.LK.border} scale-95 ${BUTTON_COLORS.LK.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">LK</span></div>
+             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.mk ? `${BUTTON_COLORS.MK.bg} ${BUTTON_COLORS.MK.border} scale-95 ${BUTTON_COLORS.MK.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">MK</span></div>
+             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.hk ? `${BUTTON_COLORS.HK.bg} ${BUTTON_COLORS.HK.border} scale-95 ${BUTTON_COLORS.HK.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">HK</span></div>
           </div>
 
           <div className="text-xs text-zinc-500 font-mono text-left border-l border-zinc-800 pl-8">
             <p className="mb-2">MOVE: <span className="text-zinc-300">[{formatKey(keyMap.up)}] [{formatKey(keyMap.left)}] [{formatKey(keyMap.down)}] [{formatKey(keyMap.right)}] / Gamepad</span></p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
-               <p className="flex items-center gap-1.5">LP: <span className="text-pink-400 font-bold">[{formatKey(keyMap.lp)}]</span> / <XboxIcon buttonId={padMap.lp} /></p>
-               <p className="flex items-center gap-1.5">LK: <span className="text-cyan-400 font-bold">[{formatKey(keyMap.lk)}]</span> / <XboxIcon buttonId={padMap.lk} /></p>
-               <p className="flex items-center gap-1.5">MP: <span className="text-pink-500 font-bold">[{formatKey(keyMap.mp)}]</span> / <XboxIcon buttonId={padMap.mp} /></p>
-               <p className="flex items-center gap-1.5">MK: <span className="text-cyan-500 font-bold">[{formatKey(keyMap.mk)}]</span> / <XboxIcon buttonId={padMap.mk} /></p>
-               <p className="flex items-center gap-1.5">HP: <span className="text-pink-600 font-bold">[{formatKey(keyMap.hp)}]</span> / <XboxIcon buttonId={padMap.hp} /></p>
-               <p className="flex items-center gap-1.5">HK: <span className="text-cyan-600 font-bold">[{formatKey(keyMap.hk)}]</span> / <XboxIcon buttonId={padMap.hk} /></p>
+               <p className="flex items-center gap-1.5">LP: <span className="font-bold" style={{color: BUTTON_COLORS.LP.text}}>[{formatKey(keyMap.lp)}]</span> / <XboxIcon buttonId={padMap.lp} /></p>
+               <p className="flex items-center gap-1.5">LK: <span className="font-bold" style={{color: BUTTON_COLORS.LK.text}}>[{formatKey(keyMap.lk)}]</span> / <XboxIcon buttonId={padMap.lk} /></p>
+               <p className="flex items-center gap-1.5">MP: <span className="font-bold" style={{color: BUTTON_COLORS.MP.text}}>[{formatKey(keyMap.mp)}]</span> / <XboxIcon buttonId={padMap.mp} /></p>
+               <p className="flex items-center gap-1.5">MK: <span className="font-bold" style={{color: BUTTON_COLORS.MK.text}}>[{formatKey(keyMap.mk)}]</span> / <XboxIcon buttonId={padMap.mk} /></p>
+               <p className="flex items-center gap-1.5">HP: <span className="font-bold" style={{color: BUTTON_COLORS.HP.text}}>[{formatKey(keyMap.hp)}]</span> / <XboxIcon buttonId={padMap.hp} /></p>
+               <p className="flex items-center gap-1.5">HK: <span className="font-bold" style={{color: BUTTON_COLORS.HK.text}}>[{formatKey(keyMap.hk)}]</span> / <XboxIcon buttonId={padMap.hk} /></p>
             </div>
           </div>
         </div>
