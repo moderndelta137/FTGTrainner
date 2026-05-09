@@ -48,5 +48,20 @@
     "height": 338,
     "x": 81,
     "y": 0
+  },
+  "hitfx_hadouken": {
+    "height": 350,
+    "x": 36,
+    "y": 27
+  },
+  "hitfx_anti_air_fire": {
+    "height": 371,
+    "x": -1,
+    "y": 62
+  },
+  "hitfx_melee": {
+    "height": 293,
+    "x": 3,
+    "y": 59
   }
 }

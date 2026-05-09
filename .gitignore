@@ -4,6 +4,9 @@ dist
 .npm-cache
 .pnpm-store
 npm-cache-local
+tmp/imagegen/
+*.tmp.png
+*.png.png
 .DS_Store
 *.local
 npm-debug.log*

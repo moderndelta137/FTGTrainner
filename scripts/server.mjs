@@ -31,6 +31,9 @@ const spriteMetadataIds = new Set([
   'opponent_jump_tell',
   'opponent_jump_active',
   'opponent_onhit',
+  'hitfx_hadouken',
+  'hitfx_anti_air_fire',
+  'hitfx_melee',
 ]);
 const spriteMetadataKeys = ['height', 'x', 'y'];
 

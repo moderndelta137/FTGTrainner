@@ -160,6 +160,42 @@ const REACTION_OPPONENT_SPRITES = {
   onHit: './public/assets/sprites/reaction/opponent_onhit.png'
 };
 
+const REACTION_HIT_FX_DEFS = [
+  {
+    id: 'hitfx_hadouken',
+    label: 'FX Hadouken Hit',
+    src: './public/assets/sprites/reaction/hitfx_hadouken_02.png',
+    frames: [
+      './public/assets/sprites/reaction/hitfx_hadouken_01.png',
+      './public/assets/sprites/reaction/hitfx_hadouken_02.png',
+      './public/assets/sprites/reaction/hitfx_hadouken_03.png',
+      './public/assets/sprites/reaction/hitfx_hadouken_04.png'
+    ]
+  },
+  {
+    id: 'hitfx_anti_air_fire',
+    label: 'FX Anti-Air Fire',
+    src: './public/assets/sprites/reaction/hitfx_anti_air_fire_02.png',
+    frames: [
+      './public/assets/sprites/reaction/hitfx_anti_air_fire_01.png',
+      './public/assets/sprites/reaction/hitfx_anti_air_fire_02.png',
+      './public/assets/sprites/reaction/hitfx_anti_air_fire_03.png',
+      './public/assets/sprites/reaction/hitfx_anti_air_fire_04.png'
+    ]
+  },
+  {
+    id: 'hitfx_melee',
+    label: 'FX Melee Hit',
+    src: './public/assets/sprites/reaction/hitfx_melee_02.png',
+    frames: [
+      './public/assets/sprites/reaction/hitfx_melee_01.png',
+      './public/assets/sprites/reaction/hitfx_melee_02.png',
+      './public/assets/sprites/reaction/hitfx_melee_03.png',
+      './public/assets/sprites/reaction/hitfx_melee_04.png'
+    ]
+  }
+];
+
 const SPRITE_METADATA_STORAGE_KEY = 'ftg_reaction_sprite_meta';
 const SPRITE_METADATA_FILE = './public/assets/sprites/reaction/metadata.json';
 
@@ -173,7 +209,8 @@ const REACTION_SPRITE_DEFS = [
   { id: 'opponent_dash_active', label: 'Opponent Dash Active', src: REACTION_OPPONENT_SPRITES.dashActive },
   { id: 'opponent_jump_tell', label: 'Opponent Jump Tell', src: REACTION_OPPONENT_SPRITES.jumpTell },
   { id: 'opponent_jump_active', label: 'Opponent Jump Active', src: REACTION_OPPONENT_SPRITES.jumpActive },
-  { id: 'opponent_onhit', label: 'Opponent On-Hit', src: REACTION_OPPONENT_SPRITES.onHit }
+  { id: 'opponent_onhit', label: 'Opponent On-Hit', src: REACTION_OPPONENT_SPRITES.onHit },
+  ...REACTION_HIT_FX_DEFS
 ];
 
 const REACTION_SPRITE_BY_ID = Object.fromEntries(REACTION_SPRITE_DEFS.map(sprite => [sprite.id, sprite]));
@@ -188,7 +225,10 @@ const DEFAULT_REACTION_SPRITE_META = {
   opponent_dash_active: { height: 350, x: -22, y: 6 },
   opponent_jump_tell: { height: 325, x: 6, y: 0 },
   opponent_jump_active: { height: 335, x: -8, y: -18 },
-  opponent_onhit: { height: 326, x: 4, y: 0 }
+  opponent_onhit: { height: 326, x: 4, y: 0 },
+  hitfx_hadouken: { height: 192, x: 0, y: 54 },
+  hitfx_anti_air_fire: { height: 192, x: 0, y: 54 },
+  hitfx_melee: { height: 176, x: 0, y: 54 }
 };
 
 const SPRITE_DEBUG_SEQUENCES = [
@@ -205,7 +245,10 @@ const SPRITE_DEBUG_SEQUENCES = [
   { id: 'opponent_dash_active', label: 'Dash Active Only', frames: ['opponent_dash_active'] },
   { id: 'opponent_jump_tell', label: 'Jump Tell Only', frames: ['opponent_jump_tell'] },
   { id: 'opponent_jump_active', label: 'Jump Active Only', frames: ['opponent_jump_active'] },
-  { id: 'opponent_onhit', label: 'Opponent On-Hit', frames: ['opponent_onhit'] }
+  { id: 'opponent_onhit', label: 'Opponent On-Hit', frames: ['opponent_onhit'] },
+  { id: 'hitfx_hadouken', label: 'FX Hadouken', frames: ['hitfx_hadouken'] },
+  { id: 'hitfx_anti_air_fire', label: 'FX Anti-Air Fire', frames: ['hitfx_anti_air_fire'] },
+  { id: 'hitfx_melee', label: 'FX Melee', frames: ['hitfx_melee'] }
 ];
 
 const TRAINING_BACKGROUND_THEMES = {
@@ -297,6 +340,8 @@ const TRAINING_BACKGROUND_THEMES = {
 
 const PLAYER_ATTACK_POSE_FRAMES = 36;
 const ON_HIT_POSE_FRAMES = 45;
+const HIT_FX_FRAME_TICKS = 4;
+const HIT_FX_FRAMES = 16;
 
 const mergeSpriteMeta = (saved = {}) => Object.fromEntries(
   Object.entries(DEFAULT_REACTION_SPRITE_META).map(([id, meta]) => [id, { ...meta, ...(saved[id] || {}) }])
@@ -321,10 +366,19 @@ const saveSpriteMetaFile = async (metadata) => {
   }
 };
 
-const getReactionPlayerAttackSpriteId = (moveId) => {
-  if (['236P', '236236P'].includes(moveId)) return 'player_hadoken';
-  if (['623P', 'charge28K'].includes(moveId)) return 'player_anti_air';
-  return 'player_idle';
+const getReactionPlayerAttackSpriteId = (moveId, moveDef = MOVE_LIST[moveId]) => {
+  if (['623P', 'charge28K', 'charge4646K'].includes(moveId)) return 'player_anti_air';
+  if (['236P', '236236P', '41236P', '214214P', '4123641236P', 'charge46P', 'charge4646P'].includes(moveId)) return 'player_hadoken';
+
+  const lastStep = moveDef?.sequence?.[moveDef.sequence.length - 1];
+  if (typeof lastStep === 'string' && lastStep.includes('K')) return 'player_anti_air';
+  return 'player_hadoken';
+};
+
+const getReactionHitFxId = (attackSpriteId) => {
+  if (attackSpriteId === 'player_anti_air') return 'hitfx_anti_air_fire';
+  if (attackSpriteId === 'player_hadoken') return 'hitfx_hadouken';
+  return 'hitfx_melee';
 };
 
 const getReactionOpponentSpriteId = (reaction) => {
@@ -713,7 +767,6 @@ function App() {
   const bgmAudioRef = useRef(null);
   const bgmUnlockedRef = useRef(false);
   const diagnosticRef = useRef([]); 
-  const bannerTimeoutRef = useRef(null);
   const resetTriggerRef = useRef(false);
   const allMoves = { ...MOVE_LIST, ...customMoves };
   const curTargetMove = allMoves[targetMove] || MOVE_LIST['236P'];
@@ -731,6 +784,10 @@ function App() {
     playerAttackSpriteUntilFrame: -1,
     playerOnHitUntilFrame: -1,
     opponentOnHitUntilFrame: -1,
+    hitFxId: null,
+    hitFxTarget: null,
+    hitFxUntilFrame: -1,
+    hitFxSerial: 0,
     inputLockUntilNeutral: false,
     lastFailureFrame: -1,
     shakeFrames: 0,
@@ -965,7 +1022,7 @@ function App() {
   const getProgressValue = (s) => trainingMode === 'precision' ? s.attemptsThisSession : s.successesThisSession;
 
   const completeSequence = (s, seq, moveDef) => {
-    if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; }
+    if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; setSuccessBanner(null); }
 
     if (trainingMode === 'reaction') {
       const scenario = REACTION_SCENARIOS[s.reaction?.scenario] || REACTION_SCENARIOS.dash;
@@ -993,9 +1050,14 @@ function App() {
     s.successesThisSession++;
     s.attemptsThisSession++;
     s.currentStreak++;
-    s.playerAttackSpriteId = getReactionPlayerAttackSpriteId(targetMove);
+    const attackSpriteId = getReactionPlayerAttackSpriteId(targetMove, moveDef);
+    s.playerAttackSpriteId = attackSpriteId;
     s.playerAttackSpriteUntilFrame = s.totalFrames + PLAYER_ATTACK_POSE_FRAMES;
-    if (trainingMode === 'reaction') s.opponentOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
+    s.opponentOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
+    s.hitFxId = getReactionHitFxId(attackSpriteId);
+    s.hitFxTarget = 'opponent';
+    s.hitFxUntilFrame = s.totalFrames + HIT_FX_FRAMES;
+    s.hitFxSerial++;
     setHitCounter(s.currentStreak);
 
     const lenFrames = s.sequenceFrames;
@@ -1014,9 +1076,19 @@ function App() {
     };
     setSessionData(prev => [...prev, dataPoint]);
 
+    const successDetail = trainingMode === 'reaction'
+      ? `Reaction: ${dataPoint.reactionFrames}f | Precision: ${dataPoint.precision}%`
+      : `Time: ${dataPoint.frames}f | Precision: ${dataPoint.precision}%`;
+    const successDiag = {
+      id: dataPoint.id,
+      title: trainingMode === 'reaction' ? 'REACTION SUCCESS' : 'COMBO SUCCESS',
+      detail: successDetail,
+      step: s.progress,
+      tone: 'success'
+    };
     setSuccessBanner(dataPoint);
-    if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
-    bannerTimeoutRef.current = setTimeout(() => setSuccessBanner(null), 2500);
+    setDiagnostics(prev => [...prev.slice(-1), successDiag]);
+    diagnosticRef.current = [...diagnosticRef.current.slice(-1), successDiag];
 
     s.progress = 0; s.framesSinceLastProgress = 0; s.waitStepFrames = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
     if (trainingMode === 'reaction') beginReactionRound(s, moveDef);
@@ -1032,10 +1104,11 @@ function App() {
   const registerFailure = (s, pEntry, failDetail, failTitle = "DROPPED COMBO") => {
     if (s.lastFailureFrame === s.totalFrames) return;
     s.lastFailureFrame = s.totalFrames;
+    setSuccessBanner(null);
     playSFX('error', s.volume);
     if (s.enableShake) { s.shakeFrames = 15; s.shakeType = 'error'; }
 
-    const diagObj = { id: Date.now(), title: failTitle, detail: failDetail, step: s.progress };
+    const diagObj = { id: Date.now(), title: failTitle, detail: failDetail, step: s.progress, tone: 'failure' };
     setDiagnostics(prev => [...prev.slice(-1), diagObj]);
     diagnosticRef.current = [...diagnosticRef.current.slice(-1), diagObj];
 
@@ -1043,7 +1116,13 @@ function App() {
     s.attemptsThisSession++;
     s.currentStreak = 0;
     setHitCounter(0);
-    if (trainingMode === 'reaction' && failTitle === 'TOO LATE') s.playerOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
+    if (trainingMode === 'reaction' && failTitle === 'TOO LATE') {
+      s.playerOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
+      s.hitFxId = 'hitfx_melee';
+      s.hitFxTarget = 'player';
+      s.hitFxUntilFrame = s.totalFrames + HIT_FX_FRAMES;
+      s.hitFxSerial++;
+    }
 
     if (trainingMode === 'streak') {
        s.successesThisSession = 0; s.attemptsThisSession = 0; setSessionData([]);
@@ -1334,7 +1413,7 @@ function App() {
           stateRef.current.totalFrames = 0; stateRef.current.stepGlows = {};
           stateRef.current.chargeGlowFrame = -999; stateRef.current.spinGlowFrame = -999;
           stateRef.current.wasChargeReady = false; stateRef.current.was360Ready = false;
-          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.playerOnHitUntilFrame = -1; stateRef.current.opponentOnHitUntilFrame = -1; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
+          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.playerOnHitUntilFrame = -1; stateRef.current.opponentOnHitUntilFrame = -1; stateRef.current.hitFxId = null; stateRef.current.hitFxTarget = null; stateRef.current.hitFxUntilFrame = -1; stateRef.current.hitFxSerial = 0; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
           stateRef.current.keys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.effectiveKeys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
           stateRef.current.successesThisSession = 0; stateRef.current.failuresThisSession = 0; stateRef.current.attemptsThisSession = 0;
@@ -1466,8 +1545,11 @@ function App() {
         if (!isHoldingPrev && s.progress > 0) s.framesSinceLastProgress += 1;
       } else {
         if (actionChanged && anyActionPressed) {
-           if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; }
+           if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; setSuccessBanner(null); }
            initAudio(); // Gamepad fallback auth
+           const activeMove = allMoves[targetMove] || MOVE_LIST['236P'];
+           s.playerAttackSpriteId = getReactionPlayerAttackSpriteId(targetMove, activeMove);
+           s.playerAttackSpriteUntilFrame = s.totalFrames + Math.floor(PLAYER_ATTACK_POSE_FRAMES * 0.6);
         }
 
         let newEntry = { 
@@ -1523,7 +1605,6 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp);
       cancelAnimationFrame(loopRef.current);
-      if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
     };
   }, [screen, targetMove, trainingMode, successTarget, playerSide, keyMap, padMap, customMoves, reactionScenario]);
 
@@ -1539,11 +1620,15 @@ function App() {
        wasChargeReady: false, was360Ready: false,
        reaction: trainingMode === 'reaction' ? makeReactionRound(resolveReactionScenario(nextMoveDef, nextMoveId)) : null,
        lastReactionFrames: null,
-       playerAttackSpriteId: null,
-       playerAttackSpriteUntilFrame: -1,
-       playerOnHitUntilFrame: -1,
-       opponentOnHitUntilFrame: -1,
-       inputLockUntilNeutral: false,
+        playerAttackSpriteId: null,
+        playerAttackSpriteUntilFrame: -1,
+        playerOnHitUntilFrame: -1,
+        opponentOnHitUntilFrame: -1,
+        hitFxId: null,
+        hitFxTarget: null,
+        hitFxUntilFrame: -1,
+        hitFxSerial: 0,
+        inputLockUntilNeutral: false,
        lastFailureFrame: -1,
        shakeFrames: 0, shakeType: null,
        keys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
@@ -1926,7 +2011,7 @@ function App() {
               ))}
             </div>
 
-            <div className="text-[10px] text-zinc-600 font-black tracking-widest uppercase mb-3">Sprites</div>
+            <div className="text-[10px] text-zinc-600 font-black tracking-widest uppercase mb-3">Sprites / Hit FX</div>
             <div className="space-y-2">
               {REACTION_SPRITE_DEFS.map(sprite => (
                 <button
@@ -2409,6 +2494,32 @@ function App() {
   const opponentReactionSpriteId = opponentOnHitActive ? 'opponent_onhit' : getReactionOpponentSpriteId(reaction);
   const opponentReactionSprite = REACTION_SPRITE_BY_ID[opponentReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.opponent_idle.src;
   const opponentReactionMeta = spriteMeta[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.opponent_idle;
+  const hitFxActive = stateRef.current.totalFrames < stateRef.current.hitFxUntilFrame;
+  const hitFxSprite = REACTION_SPRITE_BY_ID[stateRef.current.hitFxId];
+  const hitFxMeta = spriteMeta[stateRef.current.hitFxId] || DEFAULT_REACTION_SPRITE_META[stateRef.current.hitFxId] || DEFAULT_REACTION_SPRITE_META.hitfx_melee;
+  const hitFxElapsed = Math.max(0, HIT_FX_FRAMES - Math.max(0, stateRef.current.hitFxUntilFrame - stateRef.current.totalFrames));
+  const hitFxFrameIndex = Math.min((hitFxSprite?.frames?.length || 1) - 1, Math.floor(hitFxElapsed / HIT_FX_FRAME_TICKS));
+  const hitFxFrameSrc = hitFxSprite?.frames?.[hitFxFrameIndex] || hitFxSprite?.src;
+  const renderHitFx = (target, meta) => {
+    if (!hitFxActive || stateRef.current.hitFxTarget !== target || !hitFxFrameSrc) return null;
+
+    return (
+      <img
+        key={`${stateRef.current.hitFxSerial}-${target}-${hitFxFrameIndex}`}
+        src={hitFxFrameSrc}
+        alt=""
+        className="absolute z-20 w-auto max-w-none -translate-x-1/2 pointer-events-none"
+        style={{
+          imageRendering: 'pixelated',
+          height: `${hitFxMeta.height}px`,
+          left: `calc(50% + ${meta.x + hitFxMeta.x}px)`,
+          bottom: `${meta.y + hitFxMeta.y}px`,
+          filter: 'drop-shadow(0 0 14px rgba(255,255,255,0.45))'
+        }}
+        draggable={false}
+      />
+    );
+  };
   const isSuccessLinger = !!successBanner;
   const latestDiagnostic = diagnostics.length > 0 ? diagnostics[diagnostics.length - 1] : null;
   const trainingBackground = TRAINING_BACKGROUND_THEMES[backgroundTheme] || TRAINING_BACKGROUND_THEMES.grid;
@@ -2491,15 +2602,6 @@ function App() {
         .animate-punish { animation: punish-slide 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         .animate-punish-out { animation: punish-out 0.2s ease-in forwards; }
         
-        @keyframes success-splash {
-            0% { transform: translate(-50%, -20px) scale(0.9); opacity: 0; filter: brightness(1.5); }
-            10% { transform: translate(-50%, 0) scale(1.1); opacity: 1; filter: brightness(1); }
-            20% { transform: translate(-50%, 0) scale(1); opacity: 1; }
-            90% { transform: translate(-50%, 0) scale(1); opacity: 1; }
-            100% { transform: translate(-50%, -20px) scale(0.9); opacity: 0; }
-        }
-        .animate-success-splash { animation: success-splash 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-
         @keyframes hit-bump {
             0% { transform: scale(1.5) translateX(20px); opacity: 0; }
             100% { transform: scale(1) translateX(0); opacity: 1; }
@@ -2552,33 +2654,22 @@ function App() {
          </div>
       )}
 
-      {/* CENTER SUCCESS SPLASH BANNER */}
-      {successBanner && (
-         <div className="absolute top-[20%] left-1/2 -translate-x-1/2 z-50 flex pointer-events-none animate-success-splash">
-            <div className="bg-gradient-to-r from-transparent via-cyan-500 to-transparent px-16 py-3 skew-x-[-15deg] shadow-[0_0_30px_rgba(34,211,238,0.4)] border-y-4 border-cyan-300 flex flex-col items-center justify-center">
-               <div className="skew-x-[15deg] flex flex-col items-center">
-                  <h2 className="text-3xl font-black italic text-white tracking-widest uppercase drop-shadow-lg" style={{WebkitTextStroke: '1px rgba(0,0,0,0.5)'}}>
-                     {trainingMode === 'reaction' ? 'REACTION SUCCESS' : 'COMBO SUCCESS'}
-                  </h2>
-                  <p className="text-cyan-100 font-bold tracking-widest font-mono text-sm mt-1 drop-shadow-md">
-                     {trainingMode === 'reaction' ? `REACTION: ${successBanner.reactionFrames}f | PRECISION: ${successBanner.precision}%` : `TIME: ${successBanner.frames}f | PRECISION: ${successBanner.precision}%`}
-                  </p>
-               </div>
-            </div>
-         </div>
-      )}
-
       {/* DIAGNOSTIC POPUP */}
       {diagnostics.map((diag, idx) => {
          const isOld = idx < diagnostics.length - 1;
+         const isSuccess = diag.tone === 'success';
+         const bannerColorClass = isSuccess
+            ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-transparent border-blue-300 shadow-[10px_0_20px_rgba(59,130,246,0.4)]'
+            : 'bg-gradient-to-r from-red-600 via-red-500 to-transparent border-red-300 shadow-[10px_0_20px_rgba(239,68,68,0.4)]';
+         const detailColorClass = isSuccess ? 'text-blue-100' : 'text-red-100';
          return (
             <div key={diag.id} className={`absolute left-[340px] top-[20%] z-50 flex pointer-events-none transition-all duration-300 ${isOld ? 'animate-punish-out' : 'animate-punish'}`}>
-               <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-transparent border-l-[8px] border-orange-300 pl-6 pr-24 py-3 shadow-[10px_0_20px_rgba(234,88,12,0.4)] skew-x-[-10deg]">
+               <div className={`${bannerColorClass} border-l-[8px] pl-6 pr-24 py-3 skew-x-[-10deg]`}>
                   <div className="skew-x-[10deg] ml-2">
                     <h2 className="text-3xl font-black italic text-white tracking-widest uppercase drop-shadow-md" style={{WebkitTextStroke: '1px rgba(0,0,0,0.3)'}}>
                        {diag.title}
                     </h2>
-                    <p className="text-orange-100 font-bold tracking-widest uppercase text-sm">
+                    <p className={`${detailColorClass} font-bold tracking-widest uppercase text-sm`}>
                        {diag.detail}
                     </p>
                   </div>
@@ -2645,7 +2736,7 @@ function App() {
       >
         <div className="absolute left-80 right-0 bottom-0 h-[45%] pointer-events-none" style={trainingBackground.floorStyle}></div>
 
-        <div className={`${reactionIsActive ? 'absolute top-24 left-[calc(50%+10rem)] -translate-x-1/2' : 'mb-12 mt-24'} z-30 flex flex-col items-center`}>
+        <div className="absolute top-24 left-[calc(50%+10rem)] -translate-x-1/2 z-30 flex flex-col items-center">
            <div className="font-mono text-xs font-black tracking-widest mb-4 uppercase drop-shadow-[0_1px_1px_rgba(255,255,255,0.45)]" style={{ color: inputTheme.label }}>DESIRED INPUT</div>
            <div className="flex gap-4 items-center">
              
@@ -2735,12 +2826,12 @@ function App() {
            </div>
         </div>
 
-        {reactionIsActive && (
-          <div className="relative z-10 w-[72rem] max-w-[calc(100vw-24rem)] h-[25rem] mb-6 overflow-visible">
+        <div className="relative z-10 w-[72rem] max-w-[calc(100vw-24rem)] h-[25rem] mb-6 overflow-visible">
             <div
               className="absolute left-1/2 bottom-0 h-[7px] w-[calc(100vw-20rem)] -translate-x-1/2 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.28)]"
               style={{ backgroundColor: inputTheme.idleBorder }}
             ></div>
+            {reactionIsActive && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 pointer-events-none">
               <span className="px-3 py-1 rounded bg-zinc-950/80 border border-zinc-700 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
                 {reactionDef?.label || 'Reaction'}
@@ -2754,6 +2845,7 @@ function App() {
                 </span>
               )}
             </div>
+            )}
 
             <div className="absolute bottom-0 h-80 w-[34rem]"
               style={{ left: `${playerStageX}%`, transform: `translateX(-50%) scaleX(${playerFacing})` }}>
@@ -2776,6 +2868,7 @@ function App() {
                 }}
                 draggable={false}
               />
+              {renderHitFx('player', playerReactionMeta)}
             </div>
 
             <div className="absolute bottom-0 h-80 w-[34rem] transition-[filter] duration-75"
@@ -2799,9 +2892,9 @@ function App() {
                 }}
                 draggable={false}
               />
+              {renderHitFx('opponent', opponentReactionMeta)}
             </div>
-          </div>
-        )}
+        </div>
 
         {/* Progress Tracker UI */}
         <div className="relative z-10 text-center w-80">
