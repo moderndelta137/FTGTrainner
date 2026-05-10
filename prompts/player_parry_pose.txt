@@ -1,0 +1,9 @@
+Use case: stylized-concept
+Asset type: browser fighting-game reaction mode sprite
+Primary request: player_parry_pose sprite, full body, facing right, silhouette-first defensive parry pose
+Scene/backdrop: perfectly flat solid #00ff00 chroma-key background only; one uniform color, no shadows, no gradients, no floor, no texture
+Subject: black silhouette player fighter in low wide horse stance, knees bent, one fist chambered near waist, front arm extended right with open palm/guard hand, no facial detail, no interior clothing detail; one accessory only: bright red headband across forehead with short trailing strip flowing backward to the left
+Style/medium: low-detail pixel-art silhouette, old arcade game look, blocky jagged edges, high readability at small size, minimal animation-ready pose, not detailed painting, not realistic, not chibi
+Composition/framing: centered full body sprite, generous padding, 256x256-style square asset, feet aligned on same baseline, no cropping
+Color palette: pure black silhouette plus one red accessory accent; avoid all other colors inside subject; do not use #00ff00 in subject
+Constraints: crisp sprite edges, no antialias blur, no painted outline, no glowing outline, no rim light, no cast shadow, no contact shadow, no text, no logo, no watermark

@@ -1,0 +1,11 @@
+Use case: stylized-concept
+Asset type: browser fighting-game reaction mode hit effect sprite
+Primary request: normal parry impact effect, standalone effect only, compact ink-painting graffiti brush spark with a small contact point on the right
+Scene/backdrop: perfectly flat solid #00ff00 chroma-key background only; one uniform color, no shadows, no gradients, no floor, no texture
+Subject: muted magenta and violet parry spark with white core, chunky hand-painted brush strokes, a few ink flecks, rough graffiti-like calligraphic swipes deflecting left, no characters, no fists, no bodies
+Style/medium: low-detail arcade hit effect, ink brush graffiti, chunky pixel-friendly shape, old fighting-game look, high readability at small size, not realistic, not polished sci-fi
+Composition/framing: contact/core slightly right of center, short brush strokes sweep left in a compact fan, generous padding, no cropping
+Color palette: white core, muted violet, magenta, small lavender accents; avoid cyan/blue fireball palette and orange/yellow flame palette; avoid green inside subject; do not use #00ff00 in subject
+Constraints: visibly smaller and simpler than perfect parry, crisp sprite edges, no sci-fi shield plates, no hexagons, no long radial fireball spray, no character outline, no cast shadow, no contact shadow, no text, no logo, no watermark
+
+Animation notes: final game asset uses four separately generated frames from a 4-cell sprite sheet. Normal parry starts blue, expands with blue brush strokes, transitions into purple/magenta ink graffiti, then fades out.

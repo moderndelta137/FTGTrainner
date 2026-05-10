@@ -106,6 +106,8 @@ Dash In: Opponent starts farther away, shows a tell phase, then dashes forward a
 
 Jump In: Opponent starts farther away, shows a short tell phase, then follows an arcing jump path. Anti-air style moves automatically select this scenario when Reaction Scenario is set to Auto.
 
+Parry: Motion-category drill where the opponent uses LP/MP/HP Hadouken startup timings, then sends a slow/medium/fast projectile. The player succeeds by holding Drive Parry at contact with MP+MK or the Parry button. Starting parry within the two-frame contact window scores Perfect Parry; holding earlier scores Normal Parry.
+
 Input Lockout: After reaction failures, the engine requires neutral input before accepting the next attempt, preventing held-button repeats from immediately causing extra failures.
 
 6. Audio & Game Feel (Juice)

@@ -96,6 +96,7 @@ const ERROR_MAP = {
   4: 'Back (4)', 6: 'Forward (6)', 7: 'Up-Back (7)',
   8: 'Up (8)', 9: 'Up-Forward (9)',
   'P': 'Any Punch', 'K': 'Any Kick',
+  'PARRY': 'Drive Parry',
   'LP': 'Light Punch', 'MP': 'Medium Punch', 'HP': 'Heavy Punch',
   'LK': 'Light Kick', 'MK': 'Medium Kick', 'HK': 'Heavy Kick',
   '6+HP': 'Forward + Heavy Punch',
@@ -103,6 +104,15 @@ const ERROR_MAP = {
 };
 
 const INPUT_GLOW_FRAMES = 45;
+const PERFECT_PARRY_WINDOW_FRAMES = 2;
+const PROJECTILE_PARRY_RECOVERY_FRAMES = 11;
+const FIGHT_TITLE_CARD_FRAMES = 60;
+const KO_TITLE_CARD_FRAMES = 180;
+const PLAYER_STAGE_X_P1 = 22;
+const PLAYER_STAGE_X_P2 = 78;
+const PROJECTILE_PLAYER_EDGE_OFFSET_X = 6;
+const PROJECTILE_PLAYER_CONTACT_X = PLAYER_STAGE_X_P1 + PROJECTILE_PLAYER_EDGE_OFFSET_X;
+const PROJECTILE_CONTACT_INSET_PX = 22;
 
 const BUTTON_COLORS = {
   LP: { text: '#f9a8d4', bg: 'bg-pink-300', border: 'border-pink-200', shadow: 'shadow-[0_0_15px_#f9a8d4]' },
@@ -141,22 +151,72 @@ const REACTION_SCENARIOS = {
     startY: 0,
     endY: 0,
     apex: -155
+  },
+  hadoukenSlow: {
+    id: 'hadoukenSlow',
+    label: 'L Hadouken',
+    kind: 'projectile',
+    button: 'LP',
+    startupFrames: 16,
+    totalFrames: 47,
+    projectileTravelFrames: 76,
+    projectileSpeedLabel: 'Slow',
+    startX: 80,
+    endX: PROJECTILE_PLAYER_CONTACT_X,
+    startY: -92,
+    endY: -86
+  },
+  hadoukenMedium: {
+    id: 'hadoukenMedium',
+    label: 'M Hadouken',
+    kind: 'projectile',
+    button: 'MP',
+    startupFrames: 14,
+    totalFrames: 47,
+    projectileTravelFrames: 58,
+    projectileSpeedLabel: 'Medium',
+    startX: 80,
+    endX: PROJECTILE_PLAYER_CONTACT_X,
+    startY: -92,
+    endY: -86
+  },
+  hadoukenFast: {
+    id: 'hadoukenFast',
+    label: 'H Hadouken',
+    kind: 'projectile',
+    button: 'HP',
+    startupFrames: 12,
+    totalFrames: 47,
+    projectileTravelFrames: 42,
+    projectileSpeedLabel: 'Fast',
+    startX: 80,
+    endX: PROJECTILE_PLAYER_CONTACT_X,
+    startY: -92,
+    endY: -86
   }
 };
 
+const HADOUKEN_REACTION_SCENARIOS = ['hadoukenSlow', 'hadoukenMedium', 'hadoukenFast'];
+
 const REACTION_PLAYER_SPRITES = {
   idle: './public/assets/sprites/reaction/player_idle.png',
+  idleVariant01: './public/assets/sprites/reaction/player_idle_variant_01.png',
+  idleVariant02: './public/assets/sprites/reaction/player_idle_variant_02.png',
   hadoken: './public/assets/sprites/reaction/player_hadoken_pose.png',
   antiAir: './public/assets/sprites/reaction/player_anti_air_pose.png',
+  parry: './public/assets/sprites/reaction/player_parry_pose.png',
   onHit: './public/assets/sprites/reaction/player_onhit.png'
 };
 
 const REACTION_OPPONENT_SPRITES = {
   idle: './public/assets/sprites/reaction/opponent_idle.png',
+  idleVariant01: './public/assets/sprites/reaction/opponent_idle_variant_01.png',
+  idleVariant02: './public/assets/sprites/reaction/opponent_idle_variant_02.png',
   dashTell: './public/assets/sprites/reaction/opponent_dash_tell.png',
   dashActive: './public/assets/sprites/reaction/opponent_dash_active.png',
   jumpTell: './public/assets/sprites/reaction/opponent_jump_tell.png',
   jumpActive: './public/assets/sprites/reaction/opponent_jump_active.png',
+  hadoken: './public/assets/sprites/reaction/opponent_hadoken_pose.png',
   onHit: './public/assets/sprites/reaction/opponent_onhit.png'
 };
 
@@ -170,6 +230,28 @@ const REACTION_HIT_FX_DEFS = [
       './public/assets/sprites/reaction/hitfx_hadouken_02.png',
       './public/assets/sprites/reaction/hitfx_hadouken_03.png',
       './public/assets/sprites/reaction/hitfx_hadouken_04.png'
+    ]
+  },
+  {
+    id: 'hitfx_parry_normal',
+    label: 'FX Parry Normal',
+    src: './public/assets/sprites/reaction/hitfx_parry_normal_02.png',
+    frames: [
+      './public/assets/sprites/reaction/hitfx_parry_normal_01.png',
+      './public/assets/sprites/reaction/hitfx_parry_normal_02.png',
+      './public/assets/sprites/reaction/hitfx_parry_normal_03.png',
+      './public/assets/sprites/reaction/hitfx_parry_normal_04.png'
+    ]
+  },
+  {
+    id: 'hitfx_parry_perfect',
+    label: 'FX Parry Perfect',
+    src: './public/assets/sprites/reaction/hitfx_parry_perfect_02.png',
+    frames: [
+      './public/assets/sprites/reaction/hitfx_parry_perfect_01.png',
+      './public/assets/sprites/reaction/hitfx_parry_perfect_02.png',
+      './public/assets/sprites/reaction/hitfx_parry_perfect_03.png',
+      './public/assets/sprites/reaction/hitfx_parry_perfect_04.png'
     ]
   },
   {
@@ -196,20 +278,48 @@ const REACTION_HIT_FX_DEFS = [
   }
 ];
 
+const REACTION_PROJECTILE_DEFS = [
+  {
+    id: 'projectile_hadouken',
+    label: 'Hadouken Projectile',
+    src: './public/assets/sprites/reaction/hitfx_hadouken_02.png',
+    frames: [
+      './public/assets/sprites/reaction/hitfx_hadouken_01.png',
+      './public/assets/sprites/reaction/hitfx_hadouken_02.png',
+      './public/assets/sprites/reaction/hitfx_hadouken_03.png',
+      './public/assets/sprites/reaction/hitfx_hadouken_04.png'
+    ]
+  }
+];
+
 const SPRITE_METADATA_STORAGE_KEY = 'ftg_reaction_sprite_meta';
 const SPRITE_METADATA_FILE = './public/assets/sprites/reaction/metadata.json';
+const HITBOX_SETTINGS_STORAGE_KEY = 'ftg_hitbox_lab_settings';
+const IDLE_ANIMATION_FRAME_TICKS = 24;
+
+const REACTION_IDLE_ANIMATION_FRAMES = {
+  player_idle: ['player_idle', 'player_idle_variant_01', 'player_idle', 'player_idle_variant_02'],
+  opponent_idle: ['opponent_idle', 'opponent_idle_variant_01', 'opponent_idle', 'opponent_idle_variant_02']
+};
 
 const REACTION_SPRITE_DEFS = [
   { id: 'player_idle', label: 'Player Idle', src: REACTION_PLAYER_SPRITES.idle },
+  { id: 'player_idle_variant_01', label: 'Player Idle V1', src: REACTION_PLAYER_SPRITES.idleVariant01 },
+  { id: 'player_idle_variant_02', label: 'Player Idle V2', src: REACTION_PLAYER_SPRITES.idleVariant02 },
   { id: 'player_hadoken', label: 'Player Hadoken', src: REACTION_PLAYER_SPRITES.hadoken },
   { id: 'player_anti_air', label: 'Player Anti-Air', src: REACTION_PLAYER_SPRITES.antiAir },
+  { id: 'player_parry', label: 'Player Parry', src: REACTION_PLAYER_SPRITES.parry },
   { id: 'player_onhit', label: 'Player On-Hit', src: REACTION_PLAYER_SPRITES.onHit },
   { id: 'opponent_idle', label: 'Opponent Idle', src: REACTION_OPPONENT_SPRITES.idle },
+  { id: 'opponent_idle_variant_01', label: 'Opponent Idle V1', src: REACTION_OPPONENT_SPRITES.idleVariant01 },
+  { id: 'opponent_idle_variant_02', label: 'Opponent Idle V2', src: REACTION_OPPONENT_SPRITES.idleVariant02 },
   { id: 'opponent_dash_tell', label: 'Opponent Dash Tell', src: REACTION_OPPONENT_SPRITES.dashTell },
   { id: 'opponent_dash_active', label: 'Opponent Dash Active', src: REACTION_OPPONENT_SPRITES.dashActive },
   { id: 'opponent_jump_tell', label: 'Opponent Jump Tell', src: REACTION_OPPONENT_SPRITES.jumpTell },
   { id: 'opponent_jump_active', label: 'Opponent Jump Active', src: REACTION_OPPONENT_SPRITES.jumpActive },
+  { id: 'opponent_hadoken', label: 'Opponent Hadoken', src: REACTION_OPPONENT_SPRITES.hadoken },
   { id: 'opponent_onhit', label: 'Opponent On-Hit', src: REACTION_OPPONENT_SPRITES.onHit },
+  ...REACTION_PROJECTILE_DEFS,
   ...REACTION_HIT_FX_DEFS
 ];
 
@@ -217,39 +327,134 @@ const REACTION_SPRITE_BY_ID = Object.fromEntries(REACTION_SPRITE_DEFS.map(sprite
 
 const DEFAULT_REACTION_SPRITE_META = {
   player_idle: { height: 320, x: 0, y: 0 },
+  player_idle_variant_01: { height: 320, x: 0, y: -44 },
+  player_idle_variant_02: { height: 320, x: 0, y: -43 },
   player_hadoken: { height: 320, x: 6, y: 0 },
   player_anti_air: { height: 330, x: 0, y: -2 },
+  player_parry: { height: 320, x: 0, y: -18 },
   player_onhit: { height: 326, x: -4, y: 0 },
   opponent_idle: { height: 320, x: 0, y: 0 },
+  opponent_idle_variant_01: { height: 320, x: 0, y: -26 },
+  opponent_idle_variant_02: { height: 320, x: 0, y: -31 },
   opponent_dash_tell: { height: 330, x: -8, y: 2 },
   opponent_dash_active: { height: 350, x: -22, y: 6 },
   opponent_jump_tell: { height: 325, x: 6, y: 0 },
   opponent_jump_active: { height: 335, x: -8, y: -18 },
+  opponent_hadoken: { height: 320, x: -6, y: 0 },
   opponent_onhit: { height: 326, x: 4, y: 0 },
+  projectile_hadouken: { height: 92, x: 0, y: 0 },
+  hitfx_parry_normal: { height: 180, x: 18, y: 82 },
+  hitfx_parry_perfect: { height: 214, x: 18, y: 74 },
   hitfx_hadouken: { height: 192, x: 0, y: 54 },
   hitfx_anti_air_fire: { height: 192, x: 0, y: 54 },
   hitfx_melee: { height: 176, x: 0, y: 54 }
 };
 
 const SPRITE_DEBUG_SEQUENCES = [
-  { id: 'player_idle', label: 'Player Idle', frames: ['player_idle'] },
+  { id: 'player_idle', label: 'Player Idle', frames: REACTION_IDLE_ANIMATION_FRAMES.player_idle },
   { id: 'player_hadoken_anim', label: 'Player Hadoken', frames: ['player_idle', 'player_hadoken'] },
   { id: 'player_anti_air_anim', label: 'Player Anti-Air', frames: ['player_idle', 'player_anti_air'] },
+  { id: 'player_parry_anim', label: 'Player Parry', frames: ['player_idle', 'player_parry'] },
   { id: 'player_hadoken', label: 'Hadoken Only', frames: ['player_hadoken'] },
   { id: 'player_anti_air', label: 'Anti-Air Only', frames: ['player_anti_air'] },
+  { id: 'player_parry', label: 'Parry Only', frames: ['player_parry'] },
   { id: 'player_onhit', label: 'Player On-Hit', frames: ['player_onhit'] },
-  { id: 'opponent_idle', label: 'Opponent Idle', frames: ['opponent_idle'] },
+  { id: 'opponent_idle', label: 'Opponent Idle', frames: REACTION_IDLE_ANIMATION_FRAMES.opponent_idle },
   { id: 'opponent_dash', label: 'Opponent Dash', frames: ['opponent_idle', 'opponent_dash_tell', 'opponent_dash_active'] },
   { id: 'opponent_jump', label: 'Opponent Jump', frames: ['opponent_idle', 'opponent_jump_tell', 'opponent_jump_active'] },
+  { id: 'opponent_hadoken', label: 'Opponent Hadoken', frames: ['opponent_idle', 'opponent_hadoken'] },
   { id: 'opponent_dash_tell', label: 'Dash Tell Only', frames: ['opponent_dash_tell'] },
   { id: 'opponent_dash_active', label: 'Dash Active Only', frames: ['opponent_dash_active'] },
   { id: 'opponent_jump_tell', label: 'Jump Tell Only', frames: ['opponent_jump_tell'] },
   { id: 'opponent_jump_active', label: 'Jump Active Only', frames: ['opponent_jump_active'] },
   { id: 'opponent_onhit', label: 'Opponent On-Hit', frames: ['opponent_onhit'] },
+  { id: 'projectile_hadouken', label: 'Hadouken Projectile', frames: ['projectile_hadouken'] },
+  { id: 'hitfx_parry_normal', label: 'FX Parry Normal', frames: ['hitfx_parry_normal'] },
+  { id: 'hitfx_parry_perfect', label: 'FX Parry Perfect', frames: ['hitfx_parry_perfect'] },
   { id: 'hitfx_hadouken', label: 'FX Hadouken', frames: ['hitfx_hadouken'] },
   { id: 'hitfx_anti_air_fire', label: 'FX Anti-Air Fire', frames: ['hitfx_anti_air_fire'] },
   { id: 'hitfx_melee', label: 'FX Melee', frames: ['hitfx_melee'] }
 ];
+
+const getSpriteDebugSequence = (sequenceId) => {
+  const sequence = SPRITE_DEBUG_SEQUENCES.find(item => item.id === sequenceId);
+  if (sequence) return sequence;
+
+  const sprite = REACTION_SPRITE_BY_ID[sequenceId];
+  return sprite ? { id: sprite.id, label: sprite.label, frames: [sprite.id] } : SPRITE_DEBUG_SEQUENCES[0];
+};
+
+const DEFAULT_HITBOX_SETTINGS = {
+  playerFrontEdgeOffsetX: 6,
+  playerHurtboxHeight: 250,
+  playerHurtboxBottom: 16,
+  projectileHitboxWidth: 88,
+  projectileHitboxHeight: 72,
+  projectileHitboxXOffset: 0,
+  projectileHitboxYOffset: 0,
+  showInTraining: false
+};
+
+const clampNumber = (value, min, max) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, number));
+};
+
+const mergeHitboxSettings = (saved = {}) => ({
+  playerFrontEdgeOffsetX: clampNumber(saved.playerFrontEdgeOffsetX ?? DEFAULT_HITBOX_SETTINGS.playerFrontEdgeOffsetX, 2, 14),
+  playerHurtboxHeight: clampNumber(saved.playerHurtboxHeight ?? DEFAULT_HITBOX_SETTINGS.playerHurtboxHeight, 120, 340),
+  playerHurtboxBottom: clampNumber(saved.playerHurtboxBottom ?? DEFAULT_HITBOX_SETTINGS.playerHurtboxBottom, -40, 100),
+  projectileHitboxWidth: clampNumber(saved.projectileHitboxWidth ?? DEFAULT_HITBOX_SETTINGS.projectileHitboxWidth, 24, 180),
+  projectileHitboxHeight: clampNumber(saved.projectileHitboxHeight ?? DEFAULT_HITBOX_SETTINGS.projectileHitboxHeight, 24, 160),
+  projectileHitboxXOffset: clampNumber(saved.projectileHitboxXOffset ?? DEFAULT_HITBOX_SETTINGS.projectileHitboxXOffset, -120, 120),
+  projectileHitboxYOffset: clampNumber(saved.projectileHitboxYOffset ?? DEFAULT_HITBOX_SETTINGS.projectileHitboxYOffset, -80, 80),
+  showInTraining: saved.showInTraining === true
+});
+
+const getProjectilePlayerContactX = (hitboxSettings = DEFAULT_HITBOX_SETTINGS) => (
+  PLAYER_STAGE_X_P1 + hitboxSettings.playerFrontEdgeOffsetX
+);
+
+const getStagePercentPerPixel = () => {
+  if (typeof window !== 'undefined' && window.innerWidth > 0) return 100 / window.innerWidth;
+  return 100 / 2048;
+};
+
+const getProjectileHitboxBounds = (projectileX, projectileY, hitboxSettings = DEFAULT_HITBOX_SETTINGS, projectileMeta = DEFAULT_REACTION_SPRITE_META.projectile_hadouken) => {
+  const percentPerPixel = getStagePercentPerPixel();
+  const left = projectileX + ((projectileMeta.x + hitboxSettings.projectileHitboxXOffset) * percentPerPixel);
+  const width = hitboxSettings.projectileHitboxWidth * percentPerPixel;
+  const bottom = 86 - projectileY + projectileMeta.y + hitboxSettings.projectileHitboxYOffset;
+
+  return {
+    left,
+    right: left + width,
+    bottom,
+    top: bottom + hitboxSettings.projectileHitboxHeight
+  };
+};
+
+const getPlayerHurtboxBounds = (hitboxSettings = DEFAULT_HITBOX_SETTINGS) => {
+  const bottom = 86 + hitboxSettings.playerHurtboxBottom;
+
+  return {
+    left: PLAYER_STAGE_X_P1 - hitboxSettings.playerFrontEdgeOffsetX,
+    right: PLAYER_STAGE_X_P1 + hitboxSettings.playerFrontEdgeOffsetX,
+    bottom,
+    top: bottom + hitboxSettings.playerHurtboxHeight
+  };
+};
+
+const projectileContactsPlayer = (projectileBounds, playerBounds) => {
+  const contactInset = PROJECTILE_CONTACT_INSET_PX * getStagePercentPerPixel();
+  return (
+    projectileBounds.left <= playerBounds.right - contactInset &&
+    projectileBounds.right >= playerBounds.left &&
+    projectileBounds.bottom <= playerBounds.top &&
+    projectileBounds.top >= playerBounds.bottom
+  );
+};
 
 const TRAINING_BACKGROUND_THEMES = {
   grid: {
@@ -381,12 +586,26 @@ const getReactionHitFxId = (attackSpriteId) => {
   return 'hitfx_melee';
 };
 
+const getIdleAnimationSpriteId = (spriteId, totalFrames) => {
+  const frames = REACTION_IDLE_ANIMATION_FRAMES[spriteId];
+  if (!frames?.length) return spriteId;
+  return frames[Math.floor(totalFrames / IDLE_ANIMATION_FRAME_TICKS) % frames.length] || spriteId;
+};
+
 const getReactionOpponentSpriteId = (reaction) => {
   if (!reaction || reaction.phase === 'delay') return 'opponent_idle';
+  if (REACTION_SCENARIOS[reaction.scenario]?.kind === 'projectile') return 'opponent_hadoken';
   if (reaction.scenario === 'jump') {
     return reaction.phase === 'tell' ? 'opponent_jump_tell' : 'opponent_jump_active';
   }
   return reaction.phase === 'tell' ? 'opponent_dash_tell' : 'opponent_dash_active';
+};
+
+const isParryMove = (moveDef) => !!moveDef?.parry;
+
+const pickHadoukenScenario = (scenarioId) => {
+  if (HADOUKEN_REACTION_SCENARIOS.includes(scenarioId)) return scenarioId;
+  return HADOUKEN_REACTION_SCENARIOS[Math.floor(Math.random() * HADOUKEN_REACTION_SCENARIOS.length)];
 };
 
 const makeReactionRound = (scenarioId) => {
@@ -398,16 +617,19 @@ const makeReactionRound = (scenarioId) => {
     delayFrames: 45 + Math.floor(Math.random() * 76),
     actionFrame: 0,
     x: scenario.startX,
-    y: scenario.startY,
+    y: scenario.kind === 'projectile' ? 0 : scenario.startY,
     valid: false,
     lastResult: null,
-    reactionFrames: null
+    reactionFrames: null,
+    parryStartedFrame: null,
+    parryHeldFrames: 0
   };
 };
 
 const MOVE_LIST = {
   // MOTION
   '236P': { tab: 'MOTION', name: 'Hadouken', desc: 'Quarter Circle Forward + Any Punch', sequence: [2, 3, 6, 'P'] },
+  'parryHadouken': { tab: 'MOTION', name: 'Parry', desc: 'Drive Parry a Ryu Hadouken with MP+MK or Parry Button', sequence: ['PARRY'], parry: true },
   '623P': { tab: 'MOTION', name: 'Shoryuken', desc: 'Forward, Down, Down-Forward + Any Punch', sequence: [6, 2, 3, 'P'] },
   '41236P': { tab: 'MOTION', name: 'Yoga Flame', desc: 'Half Circle Forward + Any Punch', sequence: [4, 1, 2, 3, 6, 'P'] },
   '236236P': { tab: 'MOTION', name: 'Shinku Hadouken', desc: 'Double Quarter Circle Forward + Any Punch', sequence: [2, 3, 6, 2, 3, 6, 'P'] },
@@ -519,13 +741,15 @@ const hydrateEditor = (move) => {
 const DEFAULT_KEYMAP = {
    up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
    lp: 'KeyU', mp: 'KeyI', hp: 'KeyO',
-   lk: 'KeyJ', mk: 'KeyK', hk: 'KeyL'
+   lk: 'KeyJ', mk: 'KeyK', hk: 'KeyL',
+   parry: 'KeyP'
 };
 
 const DEFAULT_PADMAP = {
    up: 12, down: 13, left: 14, right: 15,
    lp: 2, mp: 3, hp: 5,
-   lk: 0, mk: 1, hk: 7
+   lk: 0, mk: 1, hk: 7,
+   parry: 4
 };
 
 const formatKey = (code) => {
@@ -553,7 +777,7 @@ const XboxIcon = ({ buttonId }) => {
 
 const getGamepadState = (padMap) => {
    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-   let gpState = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
+   let gpState = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false };
    
    for (let i = 0; i < gamepads.length; i++) {
        const gp = gamepads[i];
@@ -574,6 +798,7 @@ const getGamepadState = (padMap) => {
            if (gp.buttons[padMap.lk]?.pressed) gpState.lk = true;
            if (gp.buttons[padMap.mk]?.pressed) gpState.mk = true;
            if (gp.buttons[padMap.hk]?.pressed) gpState.hk = true;
+           if (gp.buttons[padMap.parry]?.pressed) gpState.parry = true;
        }
    }
    return gpState;
@@ -702,6 +927,7 @@ const DirIcon = ({ dir, className, flip = false }) => {
       if (buttonColor) return <span className={`font-black ${className} drop-shadow-md`} style={{ color: buttonColor.text }}>{dir}</span>;
       if (dir === 'P') return <span className={`font-black ${className} text-pink-400 drop-shadow-md`}>{dir}</span>;
       if (dir === 'K') return <span className={`font-black ${className} text-cyan-400 drop-shadow-md`}>{dir}</span>;
+      if (dir === 'PARRY') return <span className={`font-black ${className} text-blue-400 drop-shadow-md whitespace-nowrap`}>PAR</span>;
   }
 
   if (dir === 5) return <span className={`font-black ${className}`}>N</span>;
@@ -755,17 +981,21 @@ function App() {
   const [shakeStrengthX, setShakeStrengthX] = useState(15);
   const [shakeStrengthY, setShakeStrengthY] = useState(15);
   const [backgroundTheme, setBackgroundTheme] = useState('grid');
+  const [hitboxSettings, setHitboxSettings] = useState(() => mergeHitboxSettings());
   const [spriteMeta, setSpriteMeta] = useState(() => mergeSpriteMeta());
   const [spriteMetaStatus, setSpriteMetaStatus] = useState('Loaded built-in sprite metadata.');
   const [spriteDebugSelected, setSpriteDebugSelected] = useState('opponent_idle');
   const [spriteDebugFrame, setSpriteDebugFrame] = useState('opponent_idle');
   const [spriteDebugSequence, setSpriteDebugSequence] = useState('opponent_idle');
+  const [spriteDebugPaused, setSpriteDebugPaused] = useState(false);
   
   const [, setRenderTick] = useState(0);
 
   const loopRef = useRef();
   const bgmAudioRef = useRef(null);
   const bgmUnlockedRef = useRef(false);
+  const hitboxSettingsRef = useRef(hitboxSettings);
+  const spriteMetaRef = useRef(spriteMeta);
   const diagnosticRef = useRef([]); 
   const resetTriggerRef = useRef(false);
   const allMoves = { ...MOVE_LIST, ...customMoves };
@@ -779,6 +1009,8 @@ function App() {
     wasChargeReady: false,
     was360Ready: false,
     reaction: null,
+    titleCard: null,
+    pendingResults: false,
     lastReactionFrames: null,
     playerAttackSpriteId: null,
     playerAttackSpriteUntilFrame: -1,
@@ -794,9 +1026,9 @@ function App() {
     shakeType: null, // 'light' | 'heavy' | 'error'
     
     // Engine State
-    keys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
-    effectiveKeys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
-    history: [{ id: 0, dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, frames: 0, matchType: null }],
+    keys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false },
+    effectiveKeys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false },
+    history: [{ id: 0, dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false, frames: 0, matchType: null }],
     nextId: 1,
     progress: 0,
     framesSinceLastProgress: 0,
@@ -820,6 +1052,14 @@ function App() {
      stateRef.current.enableShake = enableShake;
   }, [volume, enableShake]);
 
+  useEffect(() => {
+    spriteMetaRef.current = spriteMeta;
+  }, [spriteMeta]);
+
+  useEffect(() => {
+    hitboxSettingsRef.current = hitboxSettings;
+  }, [hitboxSettings]);
+
   // Load Preferences
   useEffect(() => {
      const savedStats = localStorage.getItem('ftg_trainer_stats');
@@ -827,9 +1067,9 @@ function App() {
      const savedCustom = localStorage.getItem(CUSTOM_STORAGE_KEY);
      if (savedCustom) setCustomMoves(JSON.parse(savedCustom));
      const savedMap = localStorage.getItem('ftg_keymap');
-     if (savedMap) setKeyMap(JSON.parse(savedMap));
+     if (savedMap) setKeyMap({ ...DEFAULT_KEYMAP, ...JSON.parse(savedMap) });
      const savedPadMap = localStorage.getItem('ftg_padmap');
-     if (savedPadMap) setPadMap(JSON.parse(savedPadMap));
+     if (savedPadMap) setPadMap({ ...DEFAULT_PADMAP, ...JSON.parse(savedPadMap) });
      
      const savedVol = localStorage.getItem('ftg_vol');
      if (savedVol) setVolume(parseInt(savedVol));
@@ -843,6 +1083,14 @@ function App() {
      if (savedShakeY) setShakeStrengthY(parseInt(savedShakeY));
      const savedBackgroundTheme = localStorage.getItem('ftg_background_theme');
      if (savedBackgroundTheme && TRAINING_BACKGROUND_THEMES[savedBackgroundTheme]) setBackgroundTheme(savedBackgroundTheme);
+     const savedHitboxSettings = localStorage.getItem(HITBOX_SETTINGS_STORAGE_KEY);
+     if (savedHitboxSettings) {
+       try {
+         setHitboxSettings(mergeHitboxSettings(JSON.parse(savedHitboxSettings)));
+       } catch (error) {
+         setHitboxSettings(mergeHitboxSettings());
+       }
+     }
       loadSpriteMetaFile()
         .then(metadata => {
           setSpriteMeta(mergeSpriteMeta(metadata));
@@ -872,6 +1120,7 @@ function App() {
   useEffect(() => { localStorage.setItem('ftg_shake_x', shakeStrengthX.toString()); }, [shakeStrengthX]);
   useEffect(() => { localStorage.setItem('ftg_shake_y', shakeStrengthY.toString()); }, [shakeStrengthY]);
   useEffect(() => { localStorage.setItem('ftg_background_theme', backgroundTheme); }, [backgroundTheme]);
+  useEffect(() => { localStorage.setItem(HITBOX_SETTINGS_STORAGE_KEY, JSON.stringify(hitboxSettings)); }, [hitboxSettings]);
 
   useEffect(() => {
     const bgm = new Audio('./public/assets/BGM/TrainningRoom.mp3');
@@ -915,18 +1164,25 @@ function App() {
 
   useEffect(() => {
     if (screen !== 'spriteDebug') return;
-    const sequence = SPRITE_DEBUG_SEQUENCES.find(item => item.id === spriteDebugSequence) || SPRITE_DEBUG_SEQUENCES[0];
-    let index = 0;
+    const sequence = getSpriteDebugSequence(spriteDebugSequence);
     setSpriteDebugFrame(sequence.frames[0]);
     setSpriteDebugSelected(sequence.frames[0]);
+  }, [screen, spriteDebugSequence]);
+
+  useEffect(() => {
+    if (screen !== 'spriteDebug' || spriteDebugPaused) return;
+    const sequence = getSpriteDebugSequence(spriteDebugSequence);
     if (sequence.frames.length <= 1) return;
     const interval = setInterval(() => {
-      index = (index + 1) % sequence.frames.length;
-      setSpriteDebugFrame(sequence.frames[index]);
-      setSpriteDebugSelected(sequence.frames[index]);
+      setSpriteDebugFrame(currentFrame => {
+        const currentIndex = Math.max(0, sequence.frames.indexOf(currentFrame));
+        const nextFrame = sequence.frames[(currentIndex + 1) % sequence.frames.length];
+        setSpriteDebugSelected(nextFrame);
+        return nextFrame;
+      });
     }, 420);
     return () => clearInterval(interval);
-  }, [screen, spriteDebugSequence]);
+  }, [screen, spriteDebugSequence, spriteDebugPaused]);
 
   // Remapping Listeners
   useEffect(() => {
@@ -996,7 +1252,8 @@ function App() {
   };
 
   const resolveReactionScenario = (moveDef, moveId = targetMove) => {
-    if (reactionScenario !== 'auto') return reactionScenario;
+    if (isParryMove(moveDef)) return pickHadoukenScenario(reactionScenario);
+    if (['dash', 'jump'].includes(reactionScenario)) return reactionScenario;
     return isAntiAirMove(moveDef, moveId) ? 'jump' : 'dash';
   };
 
@@ -1020,6 +1277,18 @@ function App() {
   };
 
   const getProgressValue = (s) => trainingMode === 'precision' ? s.attemptsThisSession : s.successesThisSession;
+
+  const queueResultsScreen = (s) => {
+    if (s.pendingResults) return;
+    const isPerfectClear = s.failuresThisSession === 0;
+    s.pendingResults = true;
+    s.titleCard = {
+      kind: 'results',
+      type: isPerfectClear ? 'perfectKo' : 'ko',
+      label: isPerfectClear ? 'PERFECT K.O.' : 'K.O.',
+      frames: KO_TITLE_CARD_FRAMES
+    };
+  };
 
   const completeSequence = (s, seq, moveDef) => {
     if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; setSuccessBanner(null); }
@@ -1090,15 +1359,13 @@ function App() {
     setDiagnostics(prev => [...prev.slice(-1), successDiag]);
     diagnosticRef.current = [...diagnosticRef.current.slice(-1), successDiag];
 
-    s.progress = 0; s.framesSinceLastProgress = 0; s.waitStepFrames = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
-    if (trainingMode === 'reaction') beginReactionRound(s, moveDef);
-
     setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
     setProgressCount(getProgressValue(s));
 
-    if (trainingMode === 'streak' && s.successesThisSession >= successTarget) setScreen('results');
-    else if (trainingMode === 'reaction' && s.successesThisSession >= successTarget) setScreen('results');
-    else if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+    const targetReached = (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) || (trainingMode !== 'precision' && s.successesThisSession >= successTarget);
+    s.progress = 0; s.framesSinceLastProgress = 0; s.waitStepFrames = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
+    if (targetReached) queueResultsScreen(s);
+    else if (trainingMode === 'reaction') beginReactionRound(s, moveDef);
   };
 
   const registerFailure = (s, pEntry, failDetail, failTitle = "DROPPED COMBO") => {
@@ -1118,7 +1385,8 @@ function App() {
     setHitCounter(0);
     if (trainingMode === 'reaction' && failTitle === 'TOO LATE') {
       s.playerOnHitUntilFrame = s.totalFrames + ON_HIT_POSE_FRAMES;
-      s.hitFxId = 'hitfx_melee';
+      const scenario = REACTION_SCENARIOS[s.reaction?.scenario];
+      s.hitFxId = scenario?.kind === 'projectile' ? 'hitfx_hadouken' : 'hitfx_melee';
       s.hitFxTarget = 'player';
       s.hitFxUntilFrame = s.totalFrames + HIT_FX_FRAMES;
       s.hitFxSerial++;
@@ -1140,7 +1408,60 @@ function App() {
     setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
     setProgressCount(getProgressValue(s));
 
-    if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) setScreen('results');
+    if (trainingMode === 'precision' && s.attemptsThisSession >= successTarget) queueResultsScreen(s);
+  };
+
+  const completeParryRound = (s, scenario, isPerfect) => {
+    if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; setSuccessBanner(null); }
+    const parryEntry = [...s.history].reverse().find(entry => !entry.marker && (entry.parry || (entry.mp && entry.mk)));
+    if (parryEntry) parryEntry.matchType = isPerfect ? 'strict' : 'fuzzy';
+
+    s.successesThisSession++;
+    s.attemptsThisSession++;
+    s.currentStreak++;
+    const contactFrame = s.reaction?.contactFrame ?? s.reaction?.actionFrame ?? scenario.projectileTravelFrames;
+    s.lastReactionFrames = contactFrame - (s.reaction?.parryStartedFrame ?? 0);
+    s.reaction.lastResult = isPerfect ? 'PERFECT PARRY' : 'PARRY';
+    s.stepGlows[0] = s.totalFrames;
+    s.playerAttackSpriteId = 'player_idle';
+    s.playerAttackSpriteUntilFrame = s.totalFrames + PROJECTILE_PARRY_RECOVERY_FRAMES;
+    s.hitFxId = isPerfect ? 'hitfx_parry_perfect' : 'hitfx_parry_normal';
+    s.hitFxTarget = 'player';
+    s.hitFxUntilFrame = s.totalFrames + HIT_FX_FRAMES;
+    s.hitFxSerial++;
+    setHitCounter(s.currentStreak);
+    playSFX(isPerfect ? 'HP' : 'MP', s.volume);
+    if (s.enableShake) { s.shakeFrames = isPerfect ? 15 : 8; s.shakeType = isPerfect ? 'heavy' : 'light'; }
+
+    const dataPoint = {
+      id: Date.now(),
+      type: 'success',
+      frames: s.reaction?.parryHeldFrames || 1,
+      seconds: ((s.reaction?.parryHeldFrames || 1) / 60).toFixed(2),
+      precision: isPerfect ? 100 : 80,
+      parryPrecision: isPerfect ? 100 : 80,
+      reactionFrames: Math.max(0, s.lastReactionFrames),
+      scenario: scenario.id,
+      parryType: isPerfect ? 'Perfect Parry' : 'Normal Parry'
+    };
+    setSessionData(prev => [...prev, dataPoint]);
+
+    const successDiag = {
+      id: dataPoint.id,
+      title: isPerfect ? 'PERFECT PARRY' : 'PARRY SUCCESS',
+      detail: `${scenario.projectileSpeedLabel} ${scenario.button} Hadouken | ${isPerfect ? '2f window' : 'held parry'} | Recovery ${PROJECTILE_PARRY_RECOVERY_FRAMES}f`,
+      step: 0,
+      tone: 'success'
+    };
+    setSuccessBanner(dataPoint);
+    setDiagnostics(prev => [...prev.slice(-1), successDiag]);
+    diagnosticRef.current = [...diagnosticRef.current.slice(-1), successDiag];
+
+    setStats({ successes: s.successesThisSession, failures: s.failuresThisSession });
+    setProgressCount(getProgressValue(s));
+    s.progress = 0; s.framesSinceLastProgress = 0; s.waitStepFrames = 0; s.sequenceFrames = 0; s.sequenceSloppy = 0;
+    if (s.successesThisSession >= successTarget) queueResultsScreen(s);
+    else beginReactionRound(s, allMoves[targetMove] || MOVE_LIST['236P']);
   };
 
   const evaluateInput = (pEntry) => {
@@ -1316,10 +1637,10 @@ function App() {
     if (r.phase === 'delay') {
       r.delayFrame++;
       r.x = scenario.startX;
-      r.y = scenario.startY;
+      r.y = scenario.kind === 'projectile' ? 0 : scenario.startY;
       r.valid = false;
       if (r.delayFrame >= r.delayFrames) {
-        r.phase = scenario.tellFrames ? 'tell' : 'active';
+        r.phase = (scenario.tellFrames || scenario.startupFrames) ? 'tell' : 'active';
         r.actionFrame = 0;
         r.tellFrame = 0;
       }
@@ -1330,11 +1651,13 @@ function App() {
       r.tellFrame++;
       r.x = scenario.startX;
       r.y = 0;
-      r.valid = scenario.tellCountsAsValid !== false;
+      r.valid = scenario.kind === 'projectile' ? false : scenario.tellCountsAsValid !== false;
       if (r.valid && r.tellFrame === 1) addReactionMarker(s, 'TIMING START', 'strict');
-      if (r.tellFrame >= scenario.tellFrames) {
+      if (scenario.kind === 'projectile' && r.tellFrame === 1) addReactionMarker(s, `${scenario.button} STARTUP ${scenario.startupFrames}f`, 'fuzzy');
+      if (r.tellFrame >= (scenario.tellFrames || scenario.startupFrames)) {
         r.phase = 'active';
         r.actionFrame = 0;
+        if (scenario.kind === 'projectile') addReactionMarker(s, `${scenario.projectileSpeedLabel} PROJECTILE`, 'strict');
       }
       return false;
     }
@@ -1342,6 +1665,39 @@ function App() {
     if (r.phase !== 'active') return false;
 
     r.actionFrame++;
+    if (scenario.kind === 'projectile') {
+      const parryHeld = !!s.effectiveKeys.parry || (!!s.effectiveKeys.mp && !!s.effectiveKeys.mk);
+      if (parryHeld) r.parryHeldFrames++;
+      const tProjectile = r.actionFrame / scenario.projectileTravelFrames;
+      const contactX = getProjectilePlayerContactX(hitboxSettingsRef.current);
+      r.projectileX = scenario.startX + (contactX - scenario.startX) * tProjectile;
+      r.projectileY = scenario.startY + (scenario.endY - scenario.startY) * tProjectile;
+      r.x = scenario.startX;
+      r.y = 0;
+      r.valid = parryHeld;
+
+      const activeHitboxSettings = hitboxSettingsRef.current;
+      const projectileMeta = spriteMetaRef.current.projectile_hadouken || DEFAULT_REACTION_SPRITE_META.projectile_hadouken;
+      const projectileBounds = getProjectileHitboxBounds(r.projectileX, r.projectileY, activeHitboxSettings, projectileMeta);
+      const playerBounds = getPlayerHurtboxBounds(activeHitboxSettings);
+      const projectileTouchedPlayer = projectileContactsPlayer(projectileBounds, playerBounds);
+
+      if (projectileTouchedPlayer) {
+        r.contactFrame = r.actionFrame;
+        if (parryHeld) {
+          const framesBeforeContact = r.actionFrame - (r.parryStartedFrame ?? -999);
+          completeParryRound(s, scenario, framesBeforeContact >= 0 && framesBeforeContact < PERFECT_PARRY_WINDOW_FRAMES);
+        } else {
+          registerFailure(s, getLastInputEntry(s.history), `${scenario.projectileSpeedLabel} ${scenario.button} Hadouken reached you. Press MP+MK or ${formatKey(keyMap.parry)} before contact.`, 'TOO LATE');
+        }
+        return true;
+      }
+      if (projectileBounds.right < playerBounds.left - 3) {
+        registerFailure(s, getLastInputEntry(s.history), `${scenario.projectileSpeedLabel} ${scenario.button} Hadouken passed the hurtbox. Adjust Hitbox Lab overlap settings.`, 'MISS');
+        return true;
+      }
+      return false;
+    }
     if (r.actionFrame === scenario.validStart) addReactionMarker(s, 'TIMING START', 'strict');
     if (r.actionFrame === scenario.validEnd + 1) addReactionMarker(s, 'TIMING END', 'fuzzy');
     const t = Math.min(1, r.actionFrame / scenario.endFrame);
@@ -1386,6 +1742,7 @@ function App() {
       if (e.code === keyMap.lk) k.lk = true;
       if (e.code === keyMap.mk) k.mk = true;
       if (e.code === keyMap.hk) k.hk = true;
+      if (e.code === keyMap.parry) k.parry = true;
     };
 
     const handleKeyUp = (e) => {
@@ -1402,6 +1759,7 @@ function App() {
       if (e.code === keyMap.lk) k.lk = false;
       if (e.code === keyMap.mk) k.mk = false;
       if (e.code === keyMap.hk) k.hk = false;
+      if (e.code === keyMap.parry) k.parry = false;
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1413,13 +1771,13 @@ function App() {
           stateRef.current.totalFrames = 0; stateRef.current.stepGlows = {};
           stateRef.current.chargeGlowFrame = -999; stateRef.current.spinGlowFrame = -999;
           stateRef.current.wasChargeReady = false; stateRef.current.was360Ready = false;
-          stateRef.current.reaction = null; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.playerOnHitUntilFrame = -1; stateRef.current.opponentOnHitUntilFrame = -1; stateRef.current.hitFxId = null; stateRef.current.hitFxTarget = null; stateRef.current.hitFxUntilFrame = -1; stateRef.current.hitFxSerial = 0; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
-          stateRef.current.keys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
-          stateRef.current.effectiveKeys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false };
+          stateRef.current.reaction = null; stateRef.current.titleCard = { kind: 'start', type: 'fight', label: 'FIGHT', frames: FIGHT_TITLE_CARD_FRAMES }; stateRef.current.pendingResults = false; stateRef.current.lastReactionFrames = null; stateRef.current.playerAttackSpriteId = null; stateRef.current.playerAttackSpriteUntilFrame = -1; stateRef.current.playerOnHitUntilFrame = -1; stateRef.current.opponentOnHitUntilFrame = -1; stateRef.current.hitFxId = null; stateRef.current.hitFxTarget = null; stateRef.current.hitFxUntilFrame = -1; stateRef.current.hitFxSerial = 0; stateRef.current.inputLockUntilNeutral = false; stateRef.current.lastFailureFrame = -1;
+          stateRef.current.keys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false };
+          stateRef.current.effectiveKeys = { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false };
           stateRef.current.successesThisSession = 0; stateRef.current.failuresThisSession = 0; stateRef.current.attemptsThisSession = 0;
           stateRef.current.progress = 0; stateRef.current.framesSinceLastProgress = 0; stateRef.current.waitStepFrames = 0; stateRef.current.sloppyInputs = 0;
           stateRef.current.sequenceFrames = 0; stateRef.current.sequenceSloppy = 0; stateRef.current.currentStreak = 0;
-          stateRef.current.history = [{ id: Date.now(), dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, frames: 0, matchType: null }];
+          stateRef.current.history = [{ id: Date.now(), dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false, frames: 0, matchType: null }];
           beginReactionRound(stateRef.current, allMoves[targetMove] || MOVE_LIST['236P']);
           setProgressCount(0); setHitCounter(0); setStats({ successes: 0, failures: 0 }); setSessionData([]); setDiagnostics([]);
           diagnosticRef.current = []; setSuccessBanner(null);
@@ -1427,6 +1785,20 @@ function App() {
 
       let s = stateRef.current;
       s.totalFrames++;
+      if (s.titleCard?.frames > 0) {
+        s.titleCard.frames--;
+        if (s.titleCard.frames <= 0) {
+          if (s.pendingResults && s.titleCard.kind === 'results') {
+            s.titleCard = null;
+            setScreen('results');
+            return;
+          }
+          s.titleCard = null;
+        }
+        setRenderTick(t => t + 1);
+        loopRef.current = requestAnimationFrame(loop);
+        return;
+      }
       if (s.progress > 0) s.sequenceFrames++;
       if (s.shakeFrames > 0) s.shakeFrames--;
       const reactionStoppedFrame = updateReactionRound(s);
@@ -1437,18 +1809,23 @@ function App() {
       let eff = {
          up: k.up || gp.up, down: k.down || gp.down, left: k.left || gp.left, right: k.right || gp.right,
          lp: k.lp || gp.lp, mp: k.mp || gp.mp, hp: k.hp || gp.hp,
-         lk: k.lk || gp.lk, mk: k.mk || gp.mk, hk: k.hk || gp.hk
+         lk: k.lk || gp.lk, mk: k.mk || gp.mk, hk: k.hk || gp.hk,
+         parry: k.parry || gp.parry
       };
       s.effectiveKeys = eff;
 
       let currentDir = getDirection(eff, playerSide);
       let cLp = eff.lp; let cMp = eff.mp; let cHp = eff.hp;
       let cLk = eff.lk; let cMk = eff.mk; let cHk = eff.hk;
+      let cParry = eff.parry;
       let lastEntry = getLastInputEntry(s.history);
 
       let dirChanged = currentDir !== lastEntry.dir;
-      let actionChanged = (cLp !== lastEntry.lp || cMp !== lastEntry.mp || cHp !== lastEntry.hp || cLk !== lastEntry.lk || cMk !== lastEntry.mk || cHk !== lastEntry.hk);
-      let anyActionPressed = (cLp || cMp || cHp || cLk || cMk || cHk);
+      let actionChanged = (cLp !== lastEntry.lp || cMp !== lastEntry.mp || cHp !== lastEntry.hp || cLk !== lastEntry.lk || cMk !== lastEntry.mk || cHk !== lastEntry.hk || cParry !== lastEntry.parry);
+      let parryHeld = cParry || (cMp && cMk);
+      let lastParryHeld = lastEntry.parry || (lastEntry.mp && lastEntry.mk);
+      let parryStarted = parryHeld && !lastParryHeld;
+      let anyActionPressed = (cLp || cMp || cHp || cLk || cMk || cHk || cParry);
       if (trainingMode === 'reaction' && s.inputLockUntilNeutral) {
         if (currentDir === 5 && !anyActionPressed) s.inputLockUntilNeutral = false;
         setRenderTick(t => t + 1);
@@ -1462,6 +1839,13 @@ function App() {
       }
       if (trainingMode === 'reaction') {
         const r = s.reaction;
+        const activeMove = allMoves[targetMove] || MOVE_LIST['236P'];
+        if (isParryMove(activeMove)) {
+          if (parryStarted && r) {
+            r.parryStartedFrame = r.phase === 'active' ? r.actionFrame : -999;
+            s.stepGlows[0] = s.totalFrames;
+          }
+        } else {
         const actionStarted = actionChanged && anyActionPressed;
         const scenario = REACTION_SCENARIOS[r?.scenario] || REACTION_SCENARIOS.dash;
         const tellIsValid = r?.phase === 'tell' && scenario.tellCountsAsValid !== false;
@@ -1476,6 +1860,7 @@ function App() {
           setRenderTick(t => t + 1);
           loopRef.current = requestAnimationFrame(loop);
           return;
+        }
         }
       }
       let activeMoveForPassive = allMoves[targetMove] || MOVE_LIST['236P'];
@@ -1548,18 +1933,28 @@ function App() {
            if (diagnosticRef.current.length > 0) { setDiagnostics([]); diagnosticRef.current = []; setSuccessBanner(null); }
            initAudio(); // Gamepad fallback auth
            const activeMove = allMoves[targetMove] || MOVE_LIST['236P'];
-           s.playerAttackSpriteId = getReactionPlayerAttackSpriteId(targetMove, activeMove);
-           s.playerAttackSpriteUntilFrame = s.totalFrames + Math.floor(PLAYER_ATTACK_POSE_FRAMES * 0.6);
+           if (!isParryMove(activeMove)) {
+             s.playerAttackSpriteId = getReactionPlayerAttackSpriteId(targetMove, activeMove);
+             s.playerAttackSpriteUntilFrame = s.totalFrames + Math.floor(PLAYER_ATTACK_POSE_FRAMES * 0.6);
+           }
         }
 
         let newEntry = { 
           id: s.nextId++, dir: currentDir, lp: cLp, mp: cMp, hp: cHp, lk: cLk, mk: cMk, hk: cHk,
-          frames: 1, matchType: null, errorReason: null 
+          parry: cParry, frames: 1, matchType: null, errorReason: null
         };
         s.history.push(newEntry);
         if (s.history.length > 40) s.history.shift();
 
-        evaluateInput(newEntry);
+        if (trainingMode === 'reaction' && isParryMove(allMoves[targetMove] || MOVE_LIST['236P'])) {
+          if (parryStarted) {
+            newEntry.matchType = 'fuzzy';
+          } else if (actionChanged && anyActionPressed && !parryHeld && !cMp && !cMk) {
+            registerFailure(s, newEntry, `Expected Drive Parry, got another input. Use MP+MK or ${formatKey(keyMap.parry)}.`, 'WRONG INPUT');
+          }
+        } else {
+          evaluateInput(newEntry);
+        }
       }
 
       // Proactive Timeout Evaluation 
@@ -1612,13 +2007,17 @@ function App() {
     initAudio();
     const nextMoveId = moveId || targetMove;
     const nextMoveDef = allMoves[nextMoveId] || MOVE_LIST['236P'];
+    const nextTrainingMode = isParryMove(nextMoveDef) ? 'reaction' : trainingMode;
     setTargetMove(nextMoveId);
+    if (nextTrainingMode !== trainingMode) setTrainingMode(nextTrainingMode);
     setProgressCount(0); setHitCounter(0); setStats({ successes: 0, failures: 0 }); setSessionData([]); setDiagnostics([]);
     setSuccessBanner(null); diagnosticRef.current = [];
     stateRef.current = {
        totalFrames: 0, stepGlows: {}, chargeGlowFrame: -999, spinGlowFrame: -999,
        wasChargeReady: false, was360Ready: false,
-       reaction: trainingMode === 'reaction' ? makeReactionRound(resolveReactionScenario(nextMoveDef, nextMoveId)) : null,
+       reaction: nextTrainingMode === 'reaction' ? makeReactionRound(resolveReactionScenario(nextMoveDef, nextMoveId)) : null,
+       titleCard: { kind: 'start', type: 'fight', label: 'FIGHT', frames: FIGHT_TITLE_CARD_FRAMES },
+       pendingResults: false,
        lastReactionFrames: null,
         playerAttackSpriteId: null,
         playerAttackSpriteUntilFrame: -1,
@@ -1631,9 +2030,9 @@ function App() {
         inputLockUntilNeutral: false,
        lastFailureFrame: -1,
        shakeFrames: 0, shakeType: null,
-       keys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
-       effectiveKeys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false },
-       history: [{ id: Date.now(), dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, frames: 0, matchType: null }],
+       keys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false },
+       effectiveKeys: { up: false, down: false, left: false, right: false, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false },
+       history: [{ id: Date.now(), dir: 5, lp: false, mp: false, hp: false, lk: false, mk: false, hk: false, parry: false, frames: 0, matchType: null }],
        nextId: 1,
        progress: 0, framesSinceLastProgress: 0, waitStepFrames: 0, sloppyInputs: 0, sequenceFrames: 0, sequenceSloppy: 0,
        successesThisSession: 0, failuresThisSession: 0, attemptsThisSession: 0, currentStreak: 0,
@@ -1789,14 +2188,19 @@ function App() {
   );
 
   const updateSpriteMeta = (spriteId, patch) => {
-    setSpriteMeta(prev => mergeSpriteMeta({
+    setSpriteMeta(prev => {
+      const next = mergeSpriteMeta({
       ...prev,
       [spriteId]: { ...(prev[spriteId] || DEFAULT_REACTION_SPRITE_META[spriteId]), ...patch }
-    }));
+      });
+      spriteMetaRef.current = next;
+      return next;
+    });
   };
 
   const saveSpriteMeta = async () => {
-    const merged = mergeSpriteMeta(spriteMeta);
+    const merged = mergeSpriteMeta(spriteMetaRef.current);
+    spriteMetaRef.current = merged;
     setSpriteMeta(merged);
     setSpriteMetaStatus('Saving metadata file...');
     try {
@@ -1811,9 +2215,24 @@ function App() {
 
   const resetSpriteMeta = () => {
     const defaults = mergeSpriteMeta();
+    spriteMetaRef.current = defaults;
     setSpriteMeta(defaults);
     localStorage.removeItem(SPRITE_METADATA_STORAGE_KEY);
     setSpriteMetaStatus('Reset in the editor. Save to update the metadata file.');
+  };
+
+  const updateHitboxSetting = (key, value) => {
+    setHitboxSettings(prev => {
+      const next = mergeHitboxSettings({ ...prev, [key]: value });
+      hitboxSettingsRef.current = next;
+      return next;
+    });
+  };
+
+  const resetHitboxSettings = () => {
+    const defaults = mergeHitboxSettings();
+    hitboxSettingsRef.current = defaults;
+    setHitboxSettings(defaults);
   };
 
   const renderSpritePreview = (spriteId, facing = 1) => {
@@ -1846,10 +2265,26 @@ function App() {
 
   const renderOptionsModal = () => {
      if (!showOptions) return null;
+     const renderHitboxSlider = (label, key, min, max, unit = '') => (
+        <div>
+           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 flex justify-between">
+              <span>{label}</span>
+              <span className="text-cyan-300">{hitboxSettings[key]}{unit}</span>
+           </label>
+           <input
+              type="range"
+              min={min}
+              max={max}
+              value={hitboxSettings[key]}
+              onChange={(e) => updateHitboxSetting(key, Number(e.target.value))}
+              className="w-full accent-cyan-400"
+           />
+        </div>
+     );
      return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-sm">
-           <div className="bg-zinc-900 border-2 border-zinc-800 p-8 rounded-lg w-[32rem] max-h-[90vh] overflow-y-auto flex flex-col relative shadow-2xl">
-              <button onClick={() => {setShowOptions(false); setRemappingKey(null); setRemappingPadKey(null);}} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">✕</button>
+           <div className="bg-zinc-900 border-2 border-zinc-800 p-8 rounded-lg w-[58rem] max-h-[90vh] overflow-y-auto flex flex-col relative shadow-2xl">
+              <button onClick={() => {setShowOptions(false); setRemappingKey(null); setRemappingPadKey(null);}} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">X</button>
               <h2 className="text-3xl font-black italic text-cyan-400 tracking-widest mb-8">OPTIONS</h2>
               
               <div className="mb-4">
@@ -1919,10 +2354,11 @@ function App() {
                 Sprite Debug Lab
               </button>
 
-              <div className="border-t border-zinc-800 pt-6 mb-6 min-h-[220px]">
+              <div className="border-t border-zinc-800 pt-6 mb-8 min-h-[420px]">
                  <div className="flex gap-6 mb-4">
                     <button onClick={() => setOptionsTab('keyboard')} className={`text-xs font-black uppercase tracking-widest pb-1 border-b-2 transition-colors ${optionsTab === 'keyboard' ? 'border-yellow-500 text-yellow-500' : 'border-transparent text-zinc-500 hover:text-zinc-400'}`}>Keyboard</button>
                     <button onClick={() => setOptionsTab('gamepad')} className={`text-xs font-black uppercase tracking-widest pb-1 border-b-2 transition-colors ${optionsTab === 'gamepad' ? 'border-yellow-500 text-yellow-500' : 'border-transparent text-zinc-500 hover:text-zinc-400'}`}>Gamepad</button>
+                    <button onClick={() => setOptionsTab('hitbox')} className={`text-xs font-black uppercase tracking-widest pb-1 border-b-2 transition-colors ${optionsTab === 'hitbox' ? 'border-yellow-500 text-yellow-500' : 'border-transparent text-zinc-500 hover:text-zinc-400'}`}>Hitbox Lab</button>
                  </div>
                  
                  {optionsTab === 'keyboard' ? (
@@ -1942,9 +2378,10 @@ function App() {
                            {renderKeyBind('Light Kick', 'lk')}
                            {renderKeyBind('Med. Kick', 'mk')}
                            {renderKeyBind('Heavy Kick', 'hk')}
+                           {renderKeyBind('Parry', 'parry')}
                         </div>
                      </div>
-                 ) : (
+                 ) : optionsTab === 'gamepad' ? (
                      <div className="grid grid-cols-2 gap-x-8">
                         <div>
                            <div className="text-[10px] text-zinc-600 mb-2 border-b border-zinc-800 pb-1">MOVEMENT</div>
@@ -1961,12 +2398,62 @@ function App() {
                            {renderPadBind('Light Kick', 'lk')}
                            {renderPadBind('Med. Kick', 'mk')}
                            {renderPadBind('Heavy Kick', 'hk')}
+                           {renderPadBind('Parry', 'parry')}
                         </div>
                      </div>
+                 ) : (
+                    <div className="grid grid-cols-[1fr_26rem] gap-8 items-start">
+                       <div className="space-y-5 pb-4">
+                          {renderHitboxSlider('Player Front Edge', 'playerFrontEdgeOffsetX', 2, 14, '%')}
+                          {renderHitboxSlider('Player Hurtbox Height', 'playerHurtboxHeight', 120, 340, 'px')}
+                          {renderHitboxSlider('Player Hurtbox Floor', 'playerHurtboxBottom', -40, 100, 'px')}
+                          {renderHitboxSlider('Projectile Width', 'projectileHitboxWidth', 24, 180, 'px')}
+                          {renderHitboxSlider('Projectile Height', 'projectileHitboxHeight', 24, 160, 'px')}
+                          {renderHitboxSlider('Projectile Horizontal', 'projectileHitboxXOffset', -120, 120, 'px')}
+                          {renderHitboxSlider('Projectile Vertical', 'projectileHitboxYOffset', -80, 80, 'px')}
+                          <div className="flex gap-3 pt-2">
+                             <button
+                                onClick={() => updateHitboxSetting('showInTraining', !hitboxSettings.showInTraining)}
+                                className={`flex-1 py-2 rounded border text-xs font-black uppercase transition-colors ${hitboxSettings.showInTraining ? 'border-emerald-400 bg-emerald-400/10 text-emerald-300' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                             >
+                                Training Overlay
+                             </button>
+                             <button onClick={resetHitboxSettings} className="px-4 py-2 rounded border border-red-900/60 text-red-400 text-xs font-black uppercase hover:bg-red-950/40">
+                                Reset
+                             </button>
+                          </div>
+                       </div>
+                       <div className="relative h-[28rem] bg-zinc-950 border border-zinc-800 rounded overflow-hidden">
+                          <div className="absolute left-0 right-0 bottom-0 h-20 bg-cyan-950/40 border-t border-cyan-400/40"></div>
+                          <div
+                             className="absolute border-2 border-emerald-400/80 bg-emerald-400/10"
+                             style={{
+                                left: '50%',
+                                width: `${hitboxSettings.playerFrontEdgeOffsetX * 18}px`,
+                                height: `${hitboxSettings.playerHurtboxHeight * 0.52}px`,
+                                transform: 'translateX(-50%)',
+                                bottom: `${16 + hitboxSettings.playerHurtboxBottom * 0.18}px`
+                             }}
+                          />
+                          <div
+                             className="absolute border-2 border-cyan-300/90 bg-cyan-300/10"
+                             style={{
+                                left: `calc(50% + ${hitboxSettings.playerFrontEdgeOffsetX * 9}px + ${hitboxSettings.projectileHitboxXOffset * 0.35}px)`,
+                                width: `${hitboxSettings.projectileHitboxWidth * 0.6}px`,
+                                height: `${hitboxSettings.projectileHitboxHeight * 0.6}px`,
+                                bottom: `${190 + hitboxSettings.projectileHitboxYOffset * 0.35}px`,
+                                transform: 'translateX(-100%)'
+                             }}
+                          />
+                          <div className="absolute left-1/2 bottom-4 h-48 w-px bg-yellow-400/60"></div>
+                          <div className="absolute bottom-3 left-1/2 translate-x-2 text-[9px] text-yellow-300 font-black tracking-widest uppercase">Center</div>
+                          <div className="absolute bottom-3 right-4 text-[9px] text-cyan-300 font-black tracking-widest uppercase">Contact</div>
+                       </div>
+                    </div>
                  )}
               </div>
 
-              <div className="border-t border-zinc-800 pt-6 mt-auto">
+              <div className="border-t border-zinc-800 pt-6">
                  <button onClick={clearRecords} className="w-full py-2 border border-red-900/50 text-red-500 text-xs font-black italic tracking-widest rounded hover:bg-red-900/20 transition-colors">
                     RESET SAVED RECORDS
                  </button>
@@ -1979,7 +2466,7 @@ function App() {
   const renderSpriteDebug = () => {
     const selectedSprite = REACTION_SPRITE_BY_ID[spriteDebugSelected] || REACTION_SPRITE_BY_ID.opponent_idle;
     const selectedMeta = spriteMeta[selectedSprite.id] || DEFAULT_REACTION_SPRITE_META[selectedSprite.id];
-    const activeSequence = SPRITE_DEBUG_SEQUENCES.find(item => item.id === spriteDebugSequence) || SPRITE_DEBUG_SEQUENCES[0];
+    const activeSequence = getSpriteDebugSequence(spriteDebugSequence);
     const previewFacing = selectedSprite.id.startsWith('opponent') ? 1 : 1;
     const updateNumber = (key, value) => updateSpriteMeta(selectedSprite.id, { [key]: parseInt(value, 10) || 0 });
 
@@ -1999,6 +2486,12 @@ function App() {
         <div className="flex-1 grid grid-cols-[18rem_1fr_20rem] min-h-0">
           <div className="bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto no-scrollbar">
             <div className="text-[10px] text-zinc-600 font-black tracking-widest uppercase mb-3">Playback</div>
+            <button
+              onClick={() => setSpriteDebugPaused(paused => !paused)}
+              className={`w-full mb-3 px-3 py-3 rounded border text-xs font-black uppercase tracking-widest transition-colors ${spriteDebugPaused ? 'border-emerald-400 bg-emerald-400/10 text-emerald-300' : 'border-yellow-500 bg-yellow-500/10 text-yellow-400'}`}
+            >
+              {spriteDebugPaused ? 'Play Animation' : 'Pause Animation'}
+            </button>
             <div className="space-y-2 mb-6">
               {SPRITE_DEBUG_SEQUENCES.map(sequence => (
                 <button
@@ -2016,7 +2509,7 @@ function App() {
               {REACTION_SPRITE_DEFS.map(sprite => (
                 <button
                   key={sprite.id}
-                  onClick={() => { setSpriteDebugSelected(sprite.id); setSpriteDebugFrame(sprite.id); setSpriteDebugSequence(sprite.id); }}
+                  onClick={() => { setSpriteDebugSelected(sprite.id); setSpriteDebugFrame(sprite.id); setSpriteDebugSequence(sprite.id); setSpriteDebugPaused(true); }}
                   className={`w-full text-left px-3 py-2 rounded border text-xs font-black uppercase tracking-widest transition-colors ${spriteDebugSelected === sprite.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-300' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600'}`}
                 >
                   {sprite.label}
@@ -2029,10 +2522,10 @@ function App() {
             <div className="absolute left-0 right-0 bottom-0 h-[42%]" style={TRAINING_BACKGROUND_THEMES[backgroundTheme].floorStyle}></div>
             <div className="absolute left-0 right-0 bottom-24 h-[7px] bg-cyan-300/60 shadow-[0_2px_12px_rgba(0,0,0,0.35)]"></div>
             <div className="absolute top-6 left-1/2 -translate-x-1/2 flex gap-2">
-              {activeSequence.frames.map(frame => (
+              {activeSequence.frames.map((frame, index) => (
                 <button
-                  key={frame}
-                  onClick={() => { setSpriteDebugSelected(frame); setSpriteDebugFrame(frame); }}
+                  key={`${activeSequence.id}-${frame}-${index}`}
+                  onClick={() => { setSpriteDebugSelected(frame); setSpriteDebugFrame(frame); setSpriteDebugPaused(true); }}
                   className={`px-3 py-2 rounded border text-[10px] font-black uppercase tracking-widest ${spriteDebugFrame === frame ? 'border-yellow-500 bg-yellow-500/20 text-yellow-300' : 'border-zinc-700 bg-zinc-950/80 text-zinc-400'}`}
                 >
                   {REACTION_SPRITE_BY_ID[frame]?.label || frame}
@@ -2265,7 +2758,7 @@ function App() {
       <div className="h-screen bg-zinc-950 text-white flex flex-col items-center justify-start px-6 pt-24 pb-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 to-zinc-950 select-none relative overflow-hidden">
         
         <button onClick={() => setShowOptions(true)} className="absolute top-6 right-7 text-zinc-500 hover:text-cyan-400 transition-colors flex items-center gap-2">
-           <span className="text-xl">⚙️</span><span className="font-bold tracking-widest text-sm">OPTIONS</span>
+           <span className="text-xl">OPT</span><span className="font-bold tracking-widest text-sm">OPTIONS</span>
         </button>
 
         <h1 className="text-5xl xl:text-6xl leading-none font-black italic tracking-tighter mb-1 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-pink-500 drop-shadow-lg uppercase">
@@ -2297,7 +2790,11 @@ function App() {
                {Object.entries(allMoves).filter(([id, m]) => m.tab === activeTab).map(([id, move]) => {
                   const rec = records[id];
                   return (
-                  <button key={id} onClick={() => setTargetMove(id)}
+                  <button key={id} onClick={() => {
+                    setTargetMove(id);
+                    if (isParryMove(move)) setTrainingMode('reaction');
+                    else if (HADOUKEN_REACTION_SCENARIOS.includes(reactionScenario)) setReactionScenario('auto');
+                  }}
                     className={`w-full flex items-center justify-between gap-4 px-4 py-3 bg-zinc-950/50 border-2 rounded transition-all ${targetMove === id ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/50'}`}>
                      <div className="text-left flex flex-col">
                         <span className={`font-black italic text-xl tracking-tighter uppercase ${targetMove === id ? 'text-yellow-500' : 'text-zinc-200'}`}>{move.name}</span>
@@ -2356,11 +2853,16 @@ function App() {
                   <div>
                      <label className="text-xs font-black text-zinc-500 tracking-widest mb-3 block uppercase">Reaction Scenario</label>
                      <div className="grid grid-cols-3 gap-2">
-                        {[
+                        {(isParryMove(curTargetMove) ? [
+                           ['auto', 'MIX'],
+                           ['hadoukenSlow', 'SLOW'],
+                           ['hadoukenMedium', 'MID'],
+                           ['hadoukenFast', 'FAST']
+                        ] : [
                            ['auto', 'AUTO'],
                            ['dash', 'DASH'],
                            ['jump', 'JUMP']
-                        ].map(([id, label]) => (
+                        ]).map(([id, label]) => (
                            <button key={id} onClick={() => setReactionScenario(id)}
                              className={`py-2 rounded border font-black italic text-xs ${reactionScenario === id ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
                              {label}
@@ -2449,7 +2951,7 @@ function App() {
                        {d.type === 'success' ? (
                           <>
                              <span className="text-zinc-300 font-mono tracking-wider">{d.frames}f <span className="text-zinc-600">({d.seconds}s)</span></span>
-                             <span className={`font-black italic text-lg ${d.precision === 100 ? 'text-cyan-400' : 'text-yellow-500'}`}>{d.precision}%</span>
+                             <span className={`font-black italic text-lg ${d.precision === 100 ? 'text-cyan-400' : 'text-yellow-500'}`}>{d.parryType || `${d.precision}%`}</span>
                           </>
                        ) : (
                           <span className="text-red-400 font-mono text-xs text-right truncate flex-1 ml-4">{d.reason}</span>
@@ -2474,24 +2976,33 @@ function App() {
   const effKeys = stateRef.current.effectiveKeys;
   const activeProgress = stateRef.current.progress;
   const reaction = stateRef.current.reaction;
+  const titleCard = stateRef.current.titleCard;
+  const titleCardActive = titleCard?.frames > 0;
+  const titleCardIsKo = titleCard?.type === 'ko' || titleCard?.type === 'perfectKo';
+  const titleCardIsPerfectKo = titleCard?.type === 'perfectKo';
   const reactionDef = reaction ? REACTION_SCENARIOS[reaction.scenario] : null;
   const reactionIsActive = trainingMode === 'reaction';
-  const playerStageX = playerSide === 'P1' ? 22 : 78;
+  const playerStageX = playerSide === 'P1' ? PLAYER_STAGE_X_P1 : PLAYER_STAGE_X_P2;
   const opponentStageX = reaction ? (playerSide === 'P1' ? reaction.x : 100 - reaction.x) : (playerSide === 'P1' ? 80 : 20);
   const opponentStageY = reaction ? reaction.y : 0;
   const opponentFacing = playerSide === 'P1' ? 1 : -1;
   const playerFacing = playerSide === 'P1' ? 1 : -1;
   const playerOnHitActive = stateRef.current.totalFrames < stateRef.current.playerOnHitUntilFrame;
   const playerAttackSpriteActive = stateRef.current.totalFrames < stateRef.current.playerAttackSpriteUntilFrame;
-  const playerReactionSpriteId = playerOnHitActive
+  const playerParryActive = trainingMode === 'reaction' && isParryMove(curTargetMove) && (effKeys.parry || (effKeys.mp && effKeys.mk));
+  const playerReactionBaseSpriteId = playerOnHitActive
     ? 'player_onhit'
+    : playerParryActive
+    ? 'player_parry'
     : playerAttackSpriteActive
     ? (stateRef.current.playerAttackSpriteId || 'player_idle')
     : 'player_idle';
+  const playerReactionSpriteId = getIdleAnimationSpriteId(playerReactionBaseSpriteId, stateRef.current.totalFrames);
   const playerReactionSprite = REACTION_SPRITE_BY_ID[playerReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.player_idle.src;
   const playerReactionMeta = spriteMeta[playerReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[playerReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.player_idle;
   const opponentOnHitActive = stateRef.current.totalFrames < stateRef.current.opponentOnHitUntilFrame;
-  const opponentReactionSpriteId = opponentOnHitActive ? 'opponent_onhit' : getReactionOpponentSpriteId(reaction);
+  const opponentReactionBaseSpriteId = opponentOnHitActive ? 'opponent_onhit' : getReactionOpponentSpriteId(reaction);
+  const opponentReactionSpriteId = getIdleAnimationSpriteId(opponentReactionBaseSpriteId, stateRef.current.totalFrames);
   const opponentReactionSprite = REACTION_SPRITE_BY_ID[opponentReactionSpriteId]?.src || REACTION_SPRITE_BY_ID.opponent_idle.src;
   const opponentReactionMeta = spriteMeta[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META[opponentReactionSpriteId] || DEFAULT_REACTION_SPRITE_META.opponent_idle;
   const hitFxActive = stateRef.current.totalFrames < stateRef.current.hitFxUntilFrame;
@@ -2500,6 +3011,18 @@ function App() {
   const hitFxElapsed = Math.max(0, HIT_FX_FRAMES - Math.max(0, stateRef.current.hitFxUntilFrame - stateRef.current.totalFrames));
   const hitFxFrameIndex = Math.min((hitFxSprite?.frames?.length || 1) - 1, Math.floor(hitFxElapsed / HIT_FX_FRAME_TICKS));
   const hitFxFrameSrc = hitFxSprite?.frames?.[hitFxFrameIndex] || hitFxSprite?.src;
+  const projectileScenario = reaction ? REACTION_SCENARIOS[reaction.scenario] : null;
+  const projectileActive = reactionIsActive && projectileScenario?.kind === 'projectile' && reaction?.phase === 'active';
+  const projectileStageX = projectileActive ? (playerSide === 'P1' ? reaction.projectileX : 100 - reaction.projectileX) : 50;
+  const projectileStageY = projectileActive ? (reaction.projectileY || projectileScenario.endY) : 0;
+  const projectileSprite = REACTION_SPRITE_BY_ID.projectile_hadouken;
+  const projectileMeta = spriteMeta.projectile_hadouken || DEFAULT_REACTION_SPRITE_META.projectile_hadouken;
+  const projectileFrameSrc = projectileSprite?.frames?.[
+    Math.floor((stateRef.current.totalFrames % (HIT_FX_FRAME_TICKS * 4)) / HIT_FX_FRAME_TICKS)
+  ] || projectileSprite?.src;
+  const showHitboxOverlay = hitboxSettings.showInTraining && reactionIsActive;
+  const playerHurtboxLeft = playerStageX - hitboxSettings.playerFrontEdgeOffsetX;
+  const playerHurtboxWidth = hitboxSettings.playerFrontEdgeOffsetX * 2;
   const renderHitFx = (target, meta) => {
     if (!hitFxActive || stateRef.current.hitFxTarget !== target || !hitFxFrameSrc) return null;
 
@@ -2601,6 +3124,41 @@ function App() {
         @keyframes punish-out { 0% { transform: translateY(0) skewX(-10deg); opacity: 1; } 100% { transform: translateY(-50px) skewX(-10deg); opacity: 0; } }
         .animate-punish { animation: punish-slide 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         .animate-punish-out { animation: punish-out 0.2s ease-in forwards; }
+
+        @keyframes title-card-pop {
+          0% { transform: translate(-50%, -50%) scale(1.7) skewX(-8deg); opacity: 0; filter: blur(7px) brightness(2.4); }
+          7% { transform: translate(-50%, -50%) scale(0.88) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1.55); }
+          14% { transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1.15); }
+          20% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1); }
+          88% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1); }
+          100% { transform: translate(-50%, -50%) scale(1.18) skewX(-8deg); opacity: 0; filter: blur(4px) brightness(1.55); }
+        }
+        @keyframes ko-title-card-pop {
+          0% { transform: translate(-50%, -50%) scale(1.7) skewX(-8deg); opacity: 0; filter: blur(7px) brightness(2.4); }
+          4% { transform: translate(-50%, -50%) scale(0.88) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1.55); }
+          9% { transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1.15); }
+          14% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1); }
+          92% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); opacity: 1; filter: blur(0) brightness(1); }
+          100% { transform: translate(-50%, -50%) scale(1.18) skewX(-8deg); opacity: 0; filter: blur(4px) brightness(1.55); }
+        }
+        @keyframes title-card-splash {
+          0% { transform: translate(-50%, -50%) scaleX(0.15); opacity: 0; }
+          8% { transform: translate(-50%, -50%) scaleX(1.06); opacity: 1; }
+          14% { transform: translate(-50%, -50%) scaleX(1); opacity: 1; }
+          88% { opacity: 1; }
+          100% { transform: translate(-50%, -50%) scaleX(1.08); opacity: 0; }
+        }
+        @keyframes ko-title-card-splash {
+          0% { transform: translate(-50%, -50%) scaleX(0.15); opacity: 0; }
+          4% { transform: translate(-50%, -50%) scaleX(1.06); opacity: 1; }
+          9% { transform: translate(-50%, -50%) scaleX(1); opacity: 1; }
+          92% { opacity: 1; }
+          100% { transform: translate(-50%, -50%) scaleX(1.08); opacity: 0; }
+        }
+        .title-card-pop { animation: title-card-pop 1s ease-out forwards; }
+        .title-card-splash { animation: title-card-splash 1s ease-out forwards; }
+        .ko-title-card-pop { animation: ko-title-card-pop 3s ease-out forwards; }
+        .ko-title-card-splash { animation: ko-title-card-splash 3s ease-out forwards; }
         
         @keyframes hit-bump {
             0% { transform: scale(1.5) translateX(20px); opacity: 0; }
@@ -2608,6 +3166,30 @@ function App() {
         }
         .animate-hit-bump { animation: hit-bump 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; display: inline-block; }
       `}} />
+
+      {titleCardActive && (
+        <div className="absolute left-80 right-0 top-0 bottom-0 z-[90] flex items-center justify-center pointer-events-none">
+          <div className={`absolute left-1/2 top-1/2 h-32 w-[68vw] max-w-[70rem] ${titleCardIsKo ? 'ko-title-card-splash' : 'title-card-splash'} ${
+            titleCardIsPerfectKo
+              ? 'bg-[linear-gradient(100deg,transparent_0%,rgba(34,211,238,0.1)_8%,rgba(126,34,206,0.82)_26%,rgba(236,72,153,0.72)_62%,transparent_100%)]'
+              : titleCardIsKo
+              ? 'bg-[linear-gradient(100deg,transparent_0%,rgba(239,68,68,0.1)_8%,rgba(249,115,22,0.86)_28%,rgba(126,34,206,0.72)_67%,transparent_100%)]'
+              : 'bg-[linear-gradient(100deg,transparent_0%,rgba(34,211,238,0.08)_8%,rgba(255,255,255,0.75)_32%,rgba(34,211,238,0.54)_63%,transparent_100%)]'
+          }`} />
+          <div
+            className={`absolute left-1/2 top-1/2 ${titleCardIsKo ? 'ko-title-card-pop' : 'title-card-pop'} ${titleCardIsPerfectKo ? 'text-[clamp(4rem,10vw,9rem)]' : 'text-[clamp(5rem,15vw,13rem)]'} leading-none font-black italic tracking-tight uppercase ${
+              titleCardIsPerfectKo
+                ? 'text-fuchsia-100 drop-shadow-[0_0_30px_rgba(217,70,239,0.95)]'
+                : titleCardIsKo
+                ? 'text-orange-100 drop-shadow-[0_0_28px_rgba(249,115,22,0.95)]'
+                : 'text-white drop-shadow-[0_0_26px_rgba(34,211,238,0.9)]'
+            }`}
+            style={{ WebkitTextStroke: titleCardIsPerfectKo ? '4px rgba(76,29,149,0.95)' : titleCardIsKo ? '4px rgba(69,10,10,0.9)' : '4px rgba(8,47,73,0.9)' }}
+          >
+            {titleCardIsPerfectKo ? 'PERFECT K.O.' : titleCardIsKo ? 'K.O.' : 'FIGHT'}
+          </div>
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="absolute top-0 left-0 w-full pl-80 p-6 flex justify-between items-start z-30 pointer-events-none">
@@ -2631,7 +3213,7 @@ function App() {
          <div className="pointer-events-auto flex items-center gap-4">
             <button onClick={() => setShowOptions(true)} className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-cyan-400 rounded transition-all group">
                <span className="text-zinc-400 group-hover:text-cyan-400 font-bold tracking-wider text-xs">OPTIONS</span>
-               <span className="font-mono text-xs px-1.5 py-0.5 bg-zinc-800 text-zinc-300 rounded border border-zinc-600">⚙️</span>
+               <span className="font-mono text-xs px-1.5 py-0.5 bg-zinc-800 text-zinc-300 rounded border border-zinc-600">OPT</span>
             </button>
             <button onClick={handleManualReset} className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-pink-500 rounded transition-all group">
                <span className="text-zinc-400 group-hover:text-pink-400 font-bold tracking-wider text-xs">RESET DRILL</span>
@@ -2714,6 +3296,7 @@ function App() {
                    {entry.lk && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.LK.bg} text-white rounded-sm`}>LK</span>}
                    {entry.mk && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.MK.bg} text-white rounded-sm`}>MK</span>}
                    {entry.hk && <span className={`px-1.5 py-0.5 text-[9px] font-black ${BUTTON_COLORS.HK.bg} text-white rounded-sm`}>HK</span>}
+                   {entry.parry && <span className="px-1.5 py-0.5 text-[9px] font-black bg-blue-500 text-white rounded-sm">PAR</span>}
                  </div>
               </div>
 
@@ -2836,8 +3419,13 @@ function App() {
               <span className="px-3 py-1 rounded bg-zinc-950/80 border border-zinc-700 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
                 {reactionDef?.label || 'Reaction'}
               </span>
+              {reactionDef?.kind === 'projectile' && (
+                <span className="px-3 py-1 rounded bg-zinc-950/80 border border-blue-500/60 text-[10px] font-black tracking-widest text-blue-300 uppercase">
+                  {reactionDef.projectileSpeedLabel} / PP {PERFECT_PARRY_WINDOW_FRAMES}f
+                </span>
+              )}
               <span className={`px-3 py-1 rounded border text-[10px] font-black tracking-widest uppercase ${reaction?.valid ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.35)]' : 'bg-zinc-950/80 border-zinc-700 text-zinc-500'}`}>
-                {reaction?.phase === 'delay' ? 'WAIT' : reaction?.phase === 'tell' ? 'GET READY' : reaction?.valid ? 'NOW' : 'READ'}
+                {reaction?.phase === 'delay' ? 'WAIT' : reaction?.phase === 'tell' ? 'STARTUP' : reactionDef?.kind === 'projectile' ? (reaction?.valid ? 'PARRY HELD' : 'PROJECTILE') : reaction?.valid ? 'NOW' : 'READ'}
               </span>
               {reaction?.lastResult && (
                 <span className="px-3 py-1 rounded bg-zinc-950/80 border border-zinc-700 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
@@ -2894,6 +3482,47 @@ function App() {
               />
               {renderHitFx('opponent', opponentReactionMeta)}
             </div>
+            {projectileActive && projectileFrameSrc && (
+              <img
+                src={projectileFrameSrc}
+                alt=""
+                className="absolute z-20 w-auto max-w-none pointer-events-none"
+                style={{
+                  imageRendering: 'pixelated',
+                  height: `${projectileMeta.height}px`,
+                  left: `calc(${projectileStageX}% + ${projectileMeta.x}px)`,
+                  bottom: `${86 - projectileStageY + projectileMeta.y}px`,
+                  transform: playerSide === 'P1' ? 'scaleX(1)' : 'scaleX(-1)',
+                  transformOrigin: 'left center',
+                  filter: 'drop-shadow(0 0 18px rgba(96,165,250,0.75)) saturate(1.2)'
+                }}
+                draggable={false}
+              />
+            )}
+            {showHitboxOverlay && (
+              <div
+                className="absolute z-30 border-2 border-emerald-400/90 bg-emerald-400/10 pointer-events-none"
+                style={{
+                  left: `${playerHurtboxLeft}%`,
+                  width: `${playerHurtboxWidth}%`,
+                  height: `${hitboxSettings.playerHurtboxHeight}px`,
+                  bottom: `${86 + hitboxSettings.playerHurtboxBottom}px`
+                }}
+              />
+            )}
+            {showHitboxOverlay && projectileActive && (
+              <div
+                className="absolute z-30 border-2 border-cyan-300/90 bg-cyan-300/10 pointer-events-none"
+                style={{
+                  left: `calc(${projectileStageX}% + ${projectileMeta.x}px)`,
+                  width: `${hitboxSettings.projectileHitboxWidth}px`,
+                  height: `${hitboxSettings.projectileHitboxHeight}px`,
+                  bottom: `${86 - projectileStageY + projectileMeta.y + hitboxSettings.projectileHitboxYOffset}px`,
+                  marginLeft: `${playerSide === 'P1' ? hitboxSettings.projectileHitboxXOffset : -hitboxSettings.projectileHitboxXOffset}px`,
+                  transform: playerSide === 'P1' ? 'translateX(0)' : 'translateX(-100%)'
+                }}
+              />
+            )}
         </div>
 
         {/* Progress Tracker UI */}
@@ -2938,6 +3567,9 @@ function App() {
              <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.lk ? `${BUTTON_COLORS.LK.bg} ${BUTTON_COLORS.LK.border} scale-95 ${BUTTON_COLORS.LK.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">LK</span></div>
              <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.mk ? `${BUTTON_COLORS.MK.bg} ${BUTTON_COLORS.MK.border} scale-95 ${BUTTON_COLORS.MK.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">MK</span></div>
              <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transform transition-transform ${effKeys.hk ? `${BUTTON_COLORS.HK.bg} ${BUTTON_COLORS.HK.border} scale-95 ${BUTTON_COLORS.HK.shadow}` : 'bg-zinc-800 border-zinc-800'}`}><span className="font-black text-xs text-white">HK</span></div>
+             <div className={`col-span-3 h-9 rounded border-2 flex items-center justify-center transform transition-transform ${effKeys.parry || (effKeys.mp && effKeys.mk) ? 'bg-blue-500/80 border-blue-300 scale-95 shadow-[0_0_16px_rgba(59,130,246,0.8)]' : 'bg-zinc-800 border-zinc-800'}`}>
+               <span className="font-black text-[10px] tracking-widest text-white">PARRY</span>
+             </div>
           </div>
 
           <div className="text-xs text-zinc-500 font-mono text-left border-l border-zinc-800 pl-8">
@@ -2949,6 +3581,7 @@ function App() {
                <p className="flex items-center gap-1.5">MK: <span className="font-bold" style={{color: BUTTON_COLORS.MK.text}}>[{formatKey(keyMap.mk)}]</span> / <XboxIcon buttonId={padMap.mk} /></p>
                <p className="flex items-center gap-1.5">HP: <span className="font-bold" style={{color: BUTTON_COLORS.HP.text}}>[{formatKey(keyMap.hp)}]</span> / <XboxIcon buttonId={padMap.hp} /></p>
                <p className="flex items-center gap-1.5">HK: <span className="font-bold" style={{color: BUTTON_COLORS.HK.text}}>[{formatKey(keyMap.hk)}]</span> / <XboxIcon buttonId={padMap.hk} /></p>
+               <p className="flex items-center gap-1.5">PARRY: <span className="font-bold text-blue-400">[{formatKey(keyMap.parry)}]</span> / <XboxIcon buttonId={padMap.parry} /> <span className="text-zinc-600">or MP+MK</span></p>
             </div>
           </div>
         </div>
